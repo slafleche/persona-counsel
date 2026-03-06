@@ -1,0 +1,9 @@
+{
+  "name": "persona-counsel",
+  "version": "0.0.0-placeholder",
+  "description": "Placeholder package for npm name reservation",
+  "license": "MIT",
+  "scripts": {
+    "prepublishOnly": "node -e \"if (!process.env.PERSONA_COUNSEL_RELEASE) { console.error('Direct npm publish is disabled; use \\\"npm run release\\\" from repo root.'); process.exit(1); }\""
+  }
+}

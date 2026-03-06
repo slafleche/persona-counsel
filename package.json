@@ -1,0 +1,15 @@
+{
+  "name": "persona-counsel-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Workspace for persona-counsel npm namespace placeholders",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run",
+    "build": "npm run -ws build --if-present",
+    "test": "npm run -ws test --if-present"
+  }
+}
