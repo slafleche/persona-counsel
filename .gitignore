@@ -6,6 +6,19 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+.eslintcache
+*.log
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
+.svelte-kit/
+storybook-static/
+playwright-report/
+test-results/
+vite.svg
 
 # Local env/config
 .env
