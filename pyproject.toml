@@ -27,3 +27,9 @@ counsel = "persona_counsel.cli:main"
 
 [project.optional-dependencies]
 build = ["pyinstaller>=6.0,<7"]
+
+[tool.hatch.build]
+exclude = [
+  "/.release-tools-venv",
+  "/.release-tools-venv/**",
+]

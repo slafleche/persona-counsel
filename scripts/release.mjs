@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import readline from 'node:readline';
@@ -24,6 +25,7 @@ const runStep = (label, command, args, options = {}) => {
     ...options,
   });
   if (result.status !== 0) {
+    cleanupLegacyReleaseVenv();
     console.error(`\n✖ ${label} failed (exit code ${result.status ?? 1})`);
     process.exit(result.status ?? 1);
   }
@@ -32,7 +34,21 @@ const runStep = (label, command, args, options = {}) => {
 const color = (value, tone) => (USE_COLOR ? `${ANSI[tone]}${value}${ANSI.reset}` : value);
 const fmtVersion = (version) => color(version, 'cyan');
 const fmtHint = (value) => color(value, 'dim');
-const RELEASE_TOOLS_VENV = '.release-tools-venv';
+const RELEASE_TOOLS_VENV = path.join(os.tmpdir(), 'persona-counsel-release-tools-venv');
+const LEGACY_RELEASE_TOOLS_VENV = '.release-tools-venv';
+
+const cleanupLegacyReleaseVenv = () => {
+  if (!existsSync(LEGACY_RELEASE_TOOLS_VENV)) {
+    return;
+  }
+  try {
+    rmSync(LEGACY_RELEASE_TOOLS_VENV, { recursive: true, force: true });
+    console.log(`\n> Cleanup: removed legacy ${LEGACY_RELEASE_TOOLS_VENV}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`\n! Cleanup warning: could not remove ${LEGACY_RELEASE_TOOLS_VENV}: ${message}`);
+  }
+};
 
 const getVenvPythonPath = () =>
   process.platform === 'win32'
@@ -236,6 +252,7 @@ const main = async () => {
 };
 
 main().catch((error) => {
+  cleanupLegacyReleaseVenv();
   console.error('Unexpected release script error:', error);
   process.exit(1);
 });
