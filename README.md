@@ -1,34 +1,28 @@
 # persona-counsel
 
-Multi-agent CLI + VS Code plugin tool.
+CLI-first multi-agent runtime (Python), with planned VS Code integration as a
+thin client.
 
-## npm namespace placeholders
-
-This repo now includes placeholder npm packages so these names can be
-reserved/published early:
-
-- `persona-counsel`
-- `counsel-cli`
-- `@persona-counsel/*` (via `@persona-counsel/core`)
-
-
-## Reserve the names on npm
-
-Use the release script (from repo root):
+## Quickstart
 
 ```bash
-npm run release:dry
-npm run release
+python3.11 -m pip install -e .
+counsel setup
+counsel doctor --json
 ```
 
-The release script:
+## VS Code Readiness
 
-- verifies `npm whoami` (you are logged in)
-- confirms all package versions are aligned
-- asks for confirmation, then publishes:
-  - `persona-counsel`
-  - `counsel-cli`
-  - `@persona-counsel/core`
+This project supports building a standalone backend binary for extension
+packaging so end users do not need to install Python manually.
 
-Direct `npm publish` inside package folders is intentionally blocked by
-`prepublishOnly` guards.
+Build command:
+
+```bash
+./scripts/build_vscode_backend.sh
+```
+
+See:
+
+- `vscode/BACKEND.md`
+- `epics/00_vision/spec.md`

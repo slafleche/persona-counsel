@@ -1,0 +1,43 @@
+{
+  "name": "persona-counsel-vscode",
+  "displayName": "Persona Counsel",
+  "description": "Thin VS Code wrapper for persona-counsel CLI",
+  "version": "0.0.1",
+  "publisher": "persona-counsel",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:personaCounsel.openTerminal",
+    "onCommand:personaCounsel.doctor",
+    "onCommand:personaCounsel.setup"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "personaCounsel.openTerminal",
+        "title": "Persona Counsel: Open Terminal"
+      },
+      {
+        "command": "personaCounsel.doctor",
+        "title": "Persona Counsel: Doctor"
+      },
+      {
+        "command": "personaCounsel.setup",
+        "title": "Persona Counsel: Setup"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p ."
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.6.3"
+  }
+}
