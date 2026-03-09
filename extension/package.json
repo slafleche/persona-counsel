@@ -30,7 +30,22 @@
         "command": "personaCounsel.setup",
         "title": "Persona Counsel: Setup"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Persona Counsel",
+      "properties": {
+        "personaCounsel.backendPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to a counsel backend executable. If set, this takes precedence over bundled and PATH lookup."
+        },
+        "personaCounsel.allowPathFallback": {
+          "type": "boolean",
+          "default": true,
+          "description": "When no bundled backend is found, allow fallback to `counsel` from PATH."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "tsc -p .",

@@ -15,6 +15,19 @@ Output:
 
 - `build/vscode-backend/counsel`
 
+## Bundled Binary Layout (Extension)
+
+The extension resolves bundled backends with this convention:
+
+- `backend/<platform>-<arch>/counsel`
+- Windows: `backend/<platform>-<arch>/counsel.exe`
+
+Examples:
+
+- `backend/darwin-arm64/counsel`
+- `backend/linux-x64/counsel`
+- `backend/win32-x64/counsel.exe`
+
 ## Extension Integration Model
 
 - Ship platform-specific binaries inside the extension package.

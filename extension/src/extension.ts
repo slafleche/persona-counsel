@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 const execFileAsync = promisify(execFile);
 
@@ -19,16 +21,74 @@ type DoctorJson = {
   };
 };
 
-async function runCounsel(args: string[]): Promise<{ stdout: string; stderr: string }> {
+function isExecutable(filePath: string): boolean {
   try {
-    const result = await execFileAsync("counsel", args, {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getBundledBinaryPath(extensionPath: string): string {
+  const platform = process.platform;
+  const arch = process.arch;
+  const binaryName = platform === "win32" ? "counsel.exe" : "counsel";
+  return path.join(extensionPath, "backend", `${platform}-${arch}`, binaryName);
+}
+
+function resolveCounselExecutable(extensionPath: string): string {
+  const config = vscode.workspace.getConfiguration("personaCounsel");
+  const overridePath = (config.get<string>("backendPath") ?? "").trim();
+  const allowPathFallback = config.get<boolean>("allowPathFallback", true);
+
+  if (overridePath.length > 0) {
+    if (!isExecutable(overridePath)) {
+      throw new Error(
+        `Configured backendPath is not executable: ${overridePath}`,
+      );
+    }
+    return overridePath;
+  }
+
+  const bundledPath = getBundledBinaryPath(extensionPath);
+  if (isExecutable(bundledPath)) {
+    return bundledPath;
+  }
+
+  if (allowPathFallback) {
+    return "counsel";
+  }
+
+  throw new Error(
+    `No bundled backend found at ${bundledPath} and PATH fallback is disabled.`,
+  );
+}
+
+function shellQuote(input: string): string {
+  if (!/\s/.test(input)) {
+    return input;
+  }
+  return `"${input.replace(/"/g, '\\"')}"`;
+}
+
+async function runCounsel(
+  extensionPath: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; executable: string }> {
+  const executable = resolveCounselExecutable(extensionPath);
+
+  try {
+    const result = await execFileAsync(executable, args, {
       cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       timeout: 30_000,
     });
-    return { stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+    return { executable, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to run counsel ${args.join(" ")}: ${message}`);
+    throw new Error(
+      `Failed to run ${executable} ${args.join(" ")}: ${message}`,
+    );
   }
 }
 
@@ -51,9 +111,17 @@ export function activate(context: vscode.ExtensionContext): void {
   const openTerminal = vscode.commands.registerCommand(
     "personaCounsel.openTerminal",
     () => {
-      const terminal = vscode.window.createTerminal("Persona Counsel");
-      terminal.show();
-      terminal.sendText("counsel --help", false);
+      try {
+        const terminal = vscode.window.createTerminal("Persona Counsel");
+        const executable = resolveCounselExecutable(context.extensionPath);
+        terminal.show();
+        terminal.sendText(`${shellQuote(executable)} --help`, false);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(
+          `Persona Counsel terminal launch failed: ${message}`,
+        );
+      }
     },
   );
 
@@ -61,12 +129,17 @@ export function activate(context: vscode.ExtensionContext): void {
     "personaCounsel.doctor",
     async () => {
       try {
-        const { stdout } = await runCounsel(["doctor", "--json"]);
+        const { stdout, executable } = await runCounsel(
+          context.extensionPath,
+          ["doctor", "--json"],
+        );
         const parsed = JSON.parse(stdout) as DoctorJson;
         const summary = summarizeDoctor(parsed);
 
         if (parsed.status === "ok") {
-          void vscode.window.showInformationMessage(`Persona Counsel doctor: ${summary}`);
+          void vscode.window.showInformationMessage(
+            `Persona Counsel doctor (${path.basename(executable)}): ${summary}`,
+          );
         } else {
           void vscode.window.showErrorMessage(`Persona Counsel doctor: ${summary}`);
         }
@@ -81,7 +154,7 @@ export function activate(context: vscode.ExtensionContext): void {
     "personaCounsel.setup",
     async () => {
       try {
-        const { stdout } = await runCounsel(["setup"]);
+        const { stdout } = await runCounsel(context.extensionPath, ["setup"]);
         const msg = stdout.trim() || "setup complete";
         void vscode.window.showInformationMessage(`Persona Counsel setup: ${msg}`);
       } catch (error: unknown) {
