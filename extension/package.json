@@ -23,7 +23,8 @@
     "onCommand:personaCounsel.showOutput",
     "onCommand:personaCounsel.openTerminal",
     "onCommand:personaCounsel.doctor",
-    "onCommand:personaCounsel.setup"
+    "onCommand:personaCounsel.setup",
+    "onCommand:personaCounsel.exportDiagnostics"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -43,6 +44,10 @@
       {
         "command": "personaCounsel.setup",
         "title": "Persona Counsel: Setup"
+      },
+      {
+        "command": "personaCounsel.exportDiagnostics",
+        "title": "Persona Counsel: Export Diagnostics"
       }
     ],
     "configuration": {

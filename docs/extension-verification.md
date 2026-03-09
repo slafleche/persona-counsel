@@ -41,6 +41,12 @@ Expected:
 4. Command: `Persona Counsel: Show Output`
 - Expected: output channel opens and shows command logs (exec path, stdout/stderr, elapsed time).
 
+5. Command: `Persona Counsel: Export Diagnostics`
+- Expected: writes a diagnostics JSON bundle under:
+  - workspace mode: `.persona-counsel/diagnostics/`
+  - no-workspace mode: system temp directory fallback
+- Expected: success notification includes path and reveal option.
+
 ## Negative Path Checks
 
 1. Missing backend and PATH fallback disabled

@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { createHash } from "node:crypto";
 
 const execFileAsync = promisify(execFile);
@@ -36,7 +37,7 @@ type BackendManifest = {
 type CommandStatus = "success" | "preflight_error" | "runtime_error";
 
 type CommandResult = {
-  command: "openTerminal" | "doctor" | "setup";
+  command: "openTerminal" | "doctor" | "setup" | "exportDiagnostics";
   status: CommandStatus;
   message: string;
   at: string;
@@ -366,6 +367,72 @@ function summarizeDoctor(data: DoctorJson): string {
   ].join(" | ");
 }
 
+function safeNowStamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+async function exportDiagnosticsBundle(
+  context: vscode.ExtensionContext,
+  output: vscode.OutputChannel,
+  strictLaunchPolicy: boolean,
+): Promise<string> {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const baseDir = workspaceRoot
+    ? path.join(workspaceRoot, ".persona-counsel", "diagnostics")
+    : path.join(os.tmpdir(), "persona-counsel-diagnostics");
+  fs.mkdirSync(baseDir, { recursive: true });
+
+  const filePath = path.join(baseDir, `diagnostics-${safeNowStamp()}.json`);
+  const config = vscode.workspace.getConfiguration("personaCounsel");
+  const outputText = (output as unknown as { value?: string }).value ?? "";
+
+  let executablePreview: string | null = null;
+  let executableError: string | null = null;
+  try {
+    executablePreview = resolveCounselExecutable(context.extensionPath, strictLaunchPolicy);
+  } catch (error: unknown) {
+    executableError = error instanceof Error ? error.message : String(error);
+  }
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    extension: {
+      id: context.extension.id,
+      version: context.extension.packageJSON.version as string,
+      mode: context.extensionMode,
+      extensionPath: context.extensionPath,
+    },
+    host: {
+      vscodeVersion: vscode.version,
+      platform: process.platform,
+      arch: process.arch,
+      nodeVersion: process.version,
+      workspaceTrusted: vscode.workspace.isTrusted,
+      workspaceFolders: (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
+    },
+    settings: {
+      backendPath: config.get<string>("backendPath"),
+      allowPathFallback: config.get<boolean>("allowPathFallback"),
+      requireTrustedWorkspace: config.get<boolean>("requireTrustedWorkspace"),
+      verifyBundledHash: config.get<boolean>("verifyBundledHash"),
+      commandTimeoutMs: config.get<number>("commandTimeoutMs"),
+    },
+    backendResolution: {
+      strictLaunchPolicy,
+      resolvedExecutable: executablePreview,
+      resolutionError: executableError,
+      bundledManifest: readBundledManifest(context.extensionPath),
+      bundledBinaryPath: getBundledBinaryPath(context.extensionPath),
+      currentTarget: getCurrentTarget(),
+    },
+    lastCommandResult,
+    outputLog: outputText,
+  };
+
+  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  return filePath;
+}
+
 export function activate(context: vscode.ExtensionContext): ExtensionApi {
   const output = vscode.window.createOutputChannel("Persona Counsel");
   const strictLaunchPolicy = context.extensionMode === vscode.ExtensionMode.Production;
@@ -490,7 +557,47 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     },
   );
 
-  context.subscriptions.push(output, showOutput, openTerminal, doctor, setup);
+  const exportDiagnostics = vscode.commands.registerCommand(
+    "personaCounsel.exportDiagnostics",
+    async () => {
+      try {
+        const diagnosticsPath = await exportDiagnosticsBundle(
+          context,
+          output,
+          strictLaunchPolicy,
+        );
+        setLastCommandResult("exportDiagnostics", "success", diagnosticsPath);
+        const selection = await vscode.window.showInformationMessage(
+          `Persona Counsel diagnostics exported: ${diagnosticsPath}`,
+          "Reveal in Finder/Explorer",
+          "Show Output",
+        );
+        if (selection === "Reveal in Finder/Explorer") {
+          void vscode.commands.executeCommand(
+            "revealFileInOS",
+            vscode.Uri.file(diagnosticsPath),
+          );
+        } else if (selection === "Show Output") {
+          output.show(true);
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        setLastCommandResult("exportDiagnostics", "runtime_error", message);
+        void vscode.window.showErrorMessage(
+          `Persona Counsel export diagnostics failed: ${message}`,
+        );
+      }
+    },
+  );
+
+  context.subscriptions.push(
+    output,
+    showOutput,
+    openTerminal,
+    doctor,
+    setup,
+    exportDiagnostics,
+  );
   return {
     getLastCommandResult: () => lastCommandResult,
   };

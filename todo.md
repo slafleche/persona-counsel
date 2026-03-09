@@ -12,10 +12,11 @@
 - [x] Pin and verify build toolchain versions (PyInstaller, Python minor, Node major) in CI.
 - [x] Add artifact integrity check in CI (verify manifest/hash against packaged VSIX contents post-build).
 - [x] Add upgrade/migration check (install old VSIX -> update to new VSIX -> commands still work).
-- [ ] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.
 - [x] Add `win32-x64` VSIX to the standard release packaging outputs (not smoke-only).
-- [ ] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
 - [x] Lock release metadata (final publisher/name/repository/license links and changelog flow).
-- [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
+- [x] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.
+
 - [ ] Add minimal in-extension user docs and troubleshooting commands (install, backend diagnostics, recovery).
 - [ ] Refactor release script to stop npm publishing and publish to Python package indexes + VS Code Marketplace while keeping generic release orchestration logic.
+- [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
+- [ ] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
