@@ -30,6 +30,8 @@ MSG
   exit 1
 fi
 
+python3 "$ROOT_DIR/scripts/generate_vscode_backend_manifest.py"
+
 rm -rf "$BACKEND_DEST_DIR"
 mkdir -p "$BACKEND_DEST_DIR"
 cp -R "$BACKEND_ARTIFACTS_DIR"/. "$BACKEND_DEST_DIR"/

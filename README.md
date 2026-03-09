@@ -22,6 +22,10 @@ Build command:
 ./scripts/build_vscode_backend.sh
 ```
 
+This also generates:
+
+- `build/vscode-backend-artifacts/manifest.json`
+
 Package extension command:
 
 ```bash

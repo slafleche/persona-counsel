@@ -15,6 +15,7 @@ Output:
 
 - `build/vscode-backend-artifacts/<platform>-<arch>/counsel`
 - `build/vscode-backend-artifacts/<platform>-<arch>/counsel.exe` (Windows)
+- `build/vscode-backend-artifacts/manifest.json`
 
 ## Bundled Binary Layout (Extension)
 
@@ -40,9 +41,27 @@ From repo root:
 What it does:
 
 - validates backend artifacts are present
+- regenerates backend manifest (`manifest.json`)
 - copies artifacts into `extension/backend/`
 - builds extension TypeScript output
 - packages `.vsix` via `vsce` (or `npx @vscode/vsce`)
+
+## Backend Artifact Manifest
+
+Generated file:
+
+- `build/vscode-backend-artifacts/manifest.json`
+
+Copied into extension package at:
+
+- `extension/backend/manifest.json`
+
+Manifest contents:
+
+- schema version
+- available target list
+- per-target binary path
+- size and SHA-256 hash
 
 ## Platform Matrix Preflight
 

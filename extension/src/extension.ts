@@ -21,12 +21,39 @@ type DoctorJson = {
   };
 };
 
+type BackendManifest = {
+  schemaVersion: number;
+  targets: Array<{
+    target: string;
+    filename: string;
+    relativePath: string;
+    sizeBytes: number;
+    sha256: string;
+  }>;
+};
+
 function isExecutable(filePath: string): boolean {
   try {
     fs.accessSync(filePath, fs.constants.X_OK);
     return true;
   } catch {
     return false;
+  }
+}
+
+function readBundledManifest(extensionPath: string): BackendManifest | null {
+  const manifestPath = path.join(extensionPath, "backend", "manifest.json");
+  if (!fs.existsSync(manifestPath)) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as BackendManifest;
+    if (!Array.isArray(parsed.targets)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
   }
 }
 
@@ -154,6 +181,16 @@ function summarizeDoctor(data: DoctorJson): string {
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Persona Counsel");
+  const manifest = readBundledManifest(context.extensionPath);
+  if (manifest) {
+    logSection(
+      output,
+      "backend-manifest",
+      `schema=${manifest.schemaVersion} targets=${manifest.targets.length}`,
+    );
+  } else {
+    logSection(output, "backend-manifest", "not found or invalid");
+  }
 
   const showOutput = vscode.commands.registerCommand(
     "personaCounsel.showOutput",

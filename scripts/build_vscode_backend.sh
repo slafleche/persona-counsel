@@ -43,6 +43,8 @@ python3.11 -m PyInstaller \
   --distpath "$OUT_DIR" \
   scripts/pyinstaller_entry.py
 
+python3 scripts/generate_vscode_backend_manifest.py
+
 cat <<MSG
 Built standalone backend:
   $OUT_DIR/$BIN_NAME
