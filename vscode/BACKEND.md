@@ -87,3 +87,16 @@ This creates baseline directories:
 
 Do not put core business logic in the extension. The extension is a thin UI and
 process launcher; the CLI backend is the product runtime.
+
+## Security and Runtime Settings
+
+Extension settings:
+
+- `personaCounsel.backendPath`
+  - optional absolute path to backend executable override
+- `personaCounsel.allowPathFallback`
+  - allow fallback to `counsel` from PATH when no bundled backend is present
+- `personaCounsel.requireTrustedWorkspace`
+  - block backend execution in untrusted workspaces when enabled
+- `personaCounsel.commandTimeoutMs`
+  - timeout for backend command execution

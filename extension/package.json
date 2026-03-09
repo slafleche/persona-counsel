@@ -11,6 +11,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onCommand:personaCounsel.showOutput",
     "onCommand:personaCounsel.openTerminal",
     "onCommand:personaCounsel.doctor",
     "onCommand:personaCounsel.setup"
@@ -18,6 +19,10 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "personaCounsel.showOutput",
+        "title": "Persona Counsel: Show Output"
+      },
       {
         "command": "personaCounsel.openTerminal",
         "title": "Persona Counsel: Open Terminal"
@@ -43,6 +48,18 @@
           "type": "boolean",
           "default": true,
           "description": "When no bundled backend is found, allow fallback to `counsel` from PATH."
+        },
+        "personaCounsel.requireTrustedWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Block backend execution commands when the current workspace is untrusted."
+        },
+        "personaCounsel.commandTimeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "maximum": 300000,
+          "description": "Timeout in milliseconds for backend command execution."
         }
       }
     }
