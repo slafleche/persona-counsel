@@ -1,15 +1,13 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import readline from 'node:readline';
 
-const DIST_TAG = 'latest';
+const PYTHON_REPOSITORY = process.env.PYTHON_REPOSITORY || 'pypi';
+const SKIP_PYTHON_PUBLISH = process.env.SKIP_PYTHON_PUBLISH === '1';
+const SKIP_VSCODE_PUBLISH = process.env.SKIP_VSCODE_PUBLISH === '1';
+const BUILD_LOCAL_BACKEND = process.env.BUILD_LOCAL_BACKEND === '1';
 const RELEASE_ENV = 'PERSONA_COUNSEL_RELEASE';
-const PACKAGES = [
-  { name: 'persona-counsel', dir: 'packages/persona-counsel' },
-  { name: 'counsel-cli', dir: 'packages/counsel-cli' },
-  { name: '@persona-counsel/core', dir: 'packages/core' },
-];
 
 const runStep = (label, command, args, options = {}) => {
   console.log(`\n> ${label}`);
@@ -38,71 +36,134 @@ const prompt = (question, defaultValue = '') =>
     });
   });
 
-const ensureNpmLogin = () => {
-  const result = spawnSync('npm', ['whoami'], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: process.platform === 'win32',
-  });
+const readJsonVersion = (relativePath) => {
+  const filePath = path.join(process.cwd(), relativePath);
+  const raw = readFileSync(filePath, 'utf8');
+  const data = JSON.parse(raw);
+  return String(data.version || '').trim();
+};
 
-  if (result.status !== 0) {
-    console.error(
-      '\n✖ Unable to determine npm user (`npm whoami` failed). ' +
-        'Run `npm login` and re-run this release script.',
-    );
-    process.exit(result.status ?? 1);
+const readPythonVersion = () => {
+  const pyprojectPath = path.join(process.cwd(), 'pyproject.toml');
+  const raw = readFileSync(pyprojectPath, 'utf8');
+  const match = raw.match(/^version\s*=\s*"([^"]+)"\s*$/m);
+  if (!match) {
+    console.error('\n✖ Could not read [project].version from pyproject.toml.');
+    process.exit(1);
   }
+  return match[1];
 };
 
-const readPackageVersion = (packageDir) => {
-  const pkgPath = path.join(process.cwd(), packageDir, 'package.json');
-  const raw = readFileSync(pkgPath, 'utf8');
-  const pkg = JSON.parse(raw);
-  return pkg.version;
+const readVsixTargets = () => {
+  const packageTargetsRaw = process.env.PACKAGE_TARGETS?.trim();
+  if (!packageTargetsRaw) {
+    return ['darwin-arm64', 'linux-x64', 'win32-x64'];
+  }
+  return packageTargetsRaw.split(/\s+/).filter(Boolean);
 };
 
-const versions = new Set(PACKAGES.map((pkg) => readPackageVersion(pkg.dir)));
-if (versions.size !== 1) {
-  console.error(
-    '\n✖ Package versions are not aligned. Set all package versions equal before release.',
-  );
-  process.exit(1);
-}
-const releaseVersion = [...versions][0];
+const collectPythonDistFiles = () => {
+  const distDir = path.join(process.cwd(), 'dist');
+  const files = readdirSync(distDir)
+    .filter((name) => name.endsWith('.whl') || name.endsWith('.tar.gz'))
+    .map((name) => path.join('dist', name));
+  if (files.length === 0) {
+    console.error('\n✖ No Python distribution files found under dist/.');
+    process.exit(1);
+  }
+  return files;
+};
 
-const publishOne = (pkg) => {
-  const packagePath = `./${pkg.dir}`;
+const publishVsixToMarketplace = (vsixPath) => {
   runStep(
-    `Publishing ${pkg.name}@${releaseVersion}`,
-    'npm',
-    ['publish', packagePath, '--access', 'public', '--tag', DIST_TAG],
+    `Publishing VS Code extension ${path.basename(vsixPath)}`,
+    'npx',
+    ['--yes', '@vscode/vsce', 'publish', '--packagePath', vsixPath],
     { env: { ...process.env, [RELEASE_ENV]: '1' } },
   );
 };
 
+const pythonVersion = readPythonVersion();
+const extensionVersion = readJsonVersion('extension/package.json');
+const vsixTargets = readVsixTargets();
+const vsixFiles = vsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
+
 const main = async () => {
   const isDryRun = process.argv.slice(2).includes('--dry-run');
 
-  ensureNpmLogin();
-
   if (isDryRun) {
-    console.log(
-      `\nDry run: would publish ${PACKAGES.map((pkg) => `${pkg.name}@${releaseVersion}`).join(', ')} with dist-tag "${DIST_TAG}".`,
-    );
+    console.log('\nRelease dry run plan:');
+    console.log(`- python package: persona-counsel@${pythonVersion} -> ${PYTHON_REPOSITORY}`);
+    console.log(`- vscode extension: persona-counsel-vscode@${extensionVersion} -> VS Code Marketplace`);
+    console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
+    if (BUILD_LOCAL_BACKEND) {
+      console.log('- backend packaging: include local target build (BUILD_LOCAL_BACKEND=1)');
+    }
+    if (SKIP_PYTHON_PUBLISH) {
+      console.log('- python publishing skipped (SKIP_PYTHON_PUBLISH=1)');
+    }
+    if (SKIP_VSCODE_PUBLISH) {
+      console.log('- vscode publishing skipped (SKIP_VSCODE_PUBLISH=1)');
+    }
     process.exit(0);
   }
 
-  const confirm = await prompt(
-    `Publish ${PACKAGES.length} packages at version ${releaseVersion} to npm? (y/N)`,
-    'n',
-  );
+  if (!SKIP_PYTHON_PUBLISH) {
+    runStep('Build Python distribution', 'python3', ['-m', 'build']);
+    const distFiles = collectPythonDistFiles();
+    runStep('Check Python distribution metadata', 'python3', ['-m', 'twine', 'check', ...distFiles]);
+  }
+
+  const releaseKinds = [];
+  if (!SKIP_PYTHON_PUBLISH) {
+    releaseKinds.push(`Python package persona-counsel@${pythonVersion} (${PYTHON_REPOSITORY})`);
+  }
+  if (!SKIP_VSCODE_PUBLISH) {
+    releaseKinds.push(`VS Code extension persona-counsel-vscode@${extensionVersion} (${vsixTargets.length} target VSIX files)`);
+  }
+
+  if (releaseKinds.length === 0) {
+    console.log('\nNothing to release: both SKIP_PYTHON_PUBLISH=1 and SKIP_VSCODE_PUBLISH=1 are set.');
+    process.exit(0);
+  }
+
+  const confirm = await prompt(`Publish ${releaseKinds.join(' + ')}? (y/N)`, 'n');
   if (!/^y(es)?$/i.test(confirm)) {
     console.log('\nRelease cancelled before publishing.');
     process.exit(0);
   }
 
-  PACKAGES.forEach(publishOne);
-  console.log('\n✓ Published all namespace packages.');
+  if (!SKIP_PYTHON_PUBLISH) {
+    const distFiles = collectPythonDistFiles();
+    runStep(
+      `Upload Python package to ${PYTHON_REPOSITORY}`,
+      'python3',
+      ['-m', 'twine', 'upload', '--repository', PYTHON_REPOSITORY, ...distFiles],
+      { env: { ...process.env, [RELEASE_ENV]: '1' } },
+    );
+  }
+
+  if (!SKIP_VSCODE_PUBLISH) {
+    if (!process.env.VSCE_PAT) {
+      console.error('\n✖ Missing VSCE_PAT. Set VSCE_PAT with a VS Code Marketplace PAT before publishing.');
+      process.exit(1);
+    }
+
+    const releaseVsixArgs = BUILD_LOCAL_BACKEND
+      ? ['./scripts/release_vscode_extension.sh', '--build-local']
+      : ['./scripts/release_vscode_extension.sh'];
+
+    runStep(
+      `Package VS Code extension (${vsixTargets.join(', ')})`,
+      releaseVsixArgs[0],
+      releaseVsixArgs.slice(1),
+      { env: { ...process.env, PACKAGE_TARGETS: vsixTargets.join(' '), [RELEASE_ENV]: '1' } },
+    );
+
+    vsixFiles.forEach((vsixFile) => publishVsixToMarketplace(vsixFile));
+  }
+
+  console.log('\n✓ Release publish flow completed.');
 };
 
 main().catch((error) => {

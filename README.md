@@ -84,6 +84,21 @@ Release flow helper:
 ./scripts/release_vscode_extension.sh
 ```
 
+Full publish orchestrator (Python package + VS Code Marketplace):
+
+```bash
+npm run release:dry
+npm run release
+```
+
+Notes:
+
+- Python upload target defaults to `pypi`; set `PYTHON_REPOSITORY=testpypi` for TestPyPI.
+- VS Code publish requires `VSCE_PAT` in environment.
+- You can skip either channel with:
+  - `SKIP_PYTHON_PUBLISH=1`
+  - `SKIP_VSCODE_PUBLISH=1`
+
 Custom CI target set example:
 
 ```bash

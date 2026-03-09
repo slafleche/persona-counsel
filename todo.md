@@ -17,7 +17,7 @@
 - [x] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.
 - [x] Add minimal in-extension user docs and troubleshooting commands (install, backend diagnostics, recovery).
 
-- [ ] Refactor release script to stop npm publishing and publish to Python package indexes + VS Code Marketplace while keeping generic release orchestration logic.
+- [x] Refactor release script to stop npm publishing and publish to Python package indexes + VS Code Marketplace while keeping generic release orchestration logic.
 
 - [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
 
