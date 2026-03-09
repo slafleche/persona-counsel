@@ -209,19 +209,49 @@ jobs:
         shell: bash
         run: REQUIRED_TARGETS="linux-x64" ./scripts/check_vscode_backend_matrix.sh
 
+      - name: Package baseline VSIX (simulated previous)
+        shell: bash
+        run: |
+          cp extension/package.json /tmp/extension.package.json.bak
+          python - <<'PY'
+          import json
+          p = "extension/package.json"
+          data = json.load(open(p, "r", encoding="utf-8"))
+          data["version"] = f'{data["version"]}-baseline.0'
+          json.dump(data, open(p, "w", encoding="utf-8"), indent=2)
+          print("baseline version:", data["version"])
+          PY
+          REQUIRED_TARGETS="linux-x64" PACKAGE_TARGETS="linux-x64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+          mv extension/persona-counsel-vscode-linux-x64.vsix extension/persona-counsel-vscode-linux-x64-baseline.vsix
+          mv /tmp/extension.package.json.bak extension/package.json
+
       - name: Package extension with strict gate
         shell: bash
         run: REQUIRED_TARGETS="linux-x64" PACKAGE_TARGETS="linux-x64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+
+      - name: Verify baseline VSIX backend integrity
+        shell: bash
+        run: python scripts/verify_vsix_backend_integrity.py extension/persona-counsel-vscode-linux-x64-baseline.vsix linux-x64
 
       - name: Verify packaged VSIX backend integrity
         shell: bash
         run: python scripts/verify_vsix_backend_integrity.py extension/persona-counsel-vscode-linux-x64.vsix linux-x64
 
+      - name: Verify VSIX upgrade-path compatibility
+        shell: bash
+        run: python scripts/verify_vsix_upgrade_path.py extension/persona-counsel-vscode-linux-x64-baseline.vsix extension/persona-counsel-vscode-linux-x64.vsix linux-x64
+
+      - name: Smoke test baseline and current VSIX backends
+        shell: bash
+        run: |
+          ./scripts/smoke_test_vsix_backend.sh extension/persona-counsel-vscode-linux-x64-baseline.vsix linux-x64
+          ./scripts/smoke_test_vsix_backend.sh extension/persona-counsel-vscode-linux-x64.vsix linux-x64
+
       - name: Upload VSIX
         uses: actions/upload-artifact@v4
         with:
           name: persona-counsel-vsix-linux-x64
-          path: extension/*.vsix
+          path: extension/persona-counsel-vscode-linux-x64.vsix
 
   smoke-vsix-clean-machine:
     name: Smoke Test VSIX Backend (clean machine)
