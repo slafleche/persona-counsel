@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXT_DIR="$ROOT_DIR/extension"
 BACKEND_ARTIFACTS_DIR="$ROOT_DIR/build/vscode-backend-artifacts"
 BACKEND_DEST_DIR="$EXT_DIR/backend"
+STRICT_MATRIX="${STRICT_MATRIX:-0}"
 
 if [[ ! -d "$BACKEND_ARTIFACTS_DIR" ]]; then
   cat <<MSG
@@ -38,6 +39,10 @@ if ! find "$BACKEND_DEST_DIR" -mindepth 2 -maxdepth 2 -type f \( -name "counsel"
   exit 1
 fi
 
+if [[ "$STRICT_MATRIX" == "1" ]]; then
+  "$ROOT_DIR/scripts/check_vscode_backend_matrix.sh"
+fi
+
 cd "$EXT_DIR"
 npm install
 npm run build
@@ -56,4 +61,7 @@ Backend binaries included from:
 
 Packaged extension:
   $EXT_DIR/*.vsix
+
+Strict matrix mode:
+  STRICT_MATRIX=$STRICT_MATRIX
 MSG

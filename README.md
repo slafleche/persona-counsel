@@ -28,6 +28,12 @@ Package extension command:
 ./scripts/package_vscode_extension.sh
 ```
 
+Strict release gate (all target backends required):
+
+```bash
+STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+```
+
 Local validation command:
 
 ```bash

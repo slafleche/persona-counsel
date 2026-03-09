@@ -44,6 +44,27 @@ What it does:
 - builds extension TypeScript output
 - packages `.vsix` via `vsce` (or `npx @vscode/vsce`)
 
+## Platform Matrix Preflight
+
+Check required backend targets:
+
+```bash
+./scripts/check_vscode_backend_matrix.sh
+```
+
+Default required targets:
+
+- `darwin-arm64`
+- `darwin-x64`
+- `linux-x64`
+- `win32-x64`
+
+Enforce this gate during packaging:
+
+```bash
+STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+```
+
 ## Extension Integration Model
 
 - Ship platform-specific binaries inside the extension package.
