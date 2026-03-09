@@ -6,6 +6,7 @@ EXT_DIR="$ROOT_DIR/extension"
 BACKEND_ARTIFACTS_DIR="$ROOT_DIR/build/vscode-backend-artifacts"
 BACKEND_DEST_DIR="$EXT_DIR/backend"
 STRICT_MATRIX="${STRICT_MATRIX:-0}"
+PACKAGE_TARGETS="${PACKAGE_TARGETS:-}"
 
 if [[ ! -d "$BACKEND_ARTIFACTS_DIR" ]]; then
   cat <<MSG
@@ -32,12 +33,21 @@ fi
 
 python3 "$ROOT_DIR/scripts/generate_vscode_backend_manifest.py"
 
-rm -rf "$BACKEND_DEST_DIR"
-mkdir -p "$BACKEND_DEST_DIR"
-cp -R "$BACKEND_ARTIFACTS_DIR"/. "$BACKEND_DEST_DIR"/
+ALL_TARGETS=()
+while IFS= read -r target; do
+  [[ -n "$target" ]] && ALL_TARGETS+=("$target")
+done < <(find "$BACKEND_ARTIFACTS_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
 
-if ! find "$BACKEND_DEST_DIR" -mindepth 2 -maxdepth 2 -type f \( -name "counsel" -o -name "counsel.exe" \) | grep -q .; then
-  echo "Backend copy preflight failed: no binaries present under $BACKEND_DEST_DIR"
+SELECTED_TARGETS=()
+if [[ -n "$PACKAGE_TARGETS" ]]; then
+  # shellcheck disable=SC2206
+  SELECTED_TARGETS=($PACKAGE_TARGETS)
+else
+  SELECTED_TARGETS=("${ALL_TARGETS[@]}")
+fi
+
+if (( ${#SELECTED_TARGETS[@]} == 0 )); then
+  echo "No package targets selected." >&2
   exit 1
 fi
 
@@ -49,11 +59,34 @@ cd "$EXT_DIR"
 npm install
 npm run build
 
-if command -v vsce >/dev/null 2>&1; then
-  vsce package --no-dependencies
-else
-  npx --yes @vscode/vsce package --no-dependencies
-fi
+VSIX_OUTPUTS=()
+for target in "${SELECTED_TARGETS[@]}"; do
+  SRC_DIR="$BACKEND_ARTIFACTS_DIR/$target"
+  if [[ ! -d "$SRC_DIR" ]]; then
+    echo "Requested package target missing: $target" >&2
+    exit 1
+  fi
+
+  if [[ ! -f "$SRC_DIR/counsel" && ! -f "$SRC_DIR/counsel.exe" ]]; then
+    echo "Target has no backend binary: $target" >&2
+    exit 1
+  fi
+
+  rm -rf "$BACKEND_DEST_DIR"
+  mkdir -p "$BACKEND_DEST_DIR/$target"
+  cp -R "$SRC_DIR"/. "$BACKEND_DEST_DIR/$target"/
+  if [[ -f "$BACKEND_ARTIFACTS_DIR/manifest.json" ]]; then
+    cp "$BACKEND_ARTIFACTS_DIR/manifest.json" "$BACKEND_DEST_DIR/manifest.json"
+  fi
+
+  VSIX_NAME="persona-counsel-vscode-${target}.vsix"
+  if command -v vsce >/dev/null 2>&1; then
+    vsce package --no-dependencies --out "$VSIX_NAME"
+  else
+    npx --yes @vscode/vsce package --no-dependencies --out "$VSIX_NAME"
+  fi
+  VSIX_OUTPUTS+=("$EXT_DIR/$VSIX_NAME")
+done
 
 cat <<MSG
 Extension packaged successfully.
@@ -61,9 +94,11 @@ Extension packaged successfully.
 Backend binaries included from:
   $BACKEND_ARTIFACTS_DIR
 
-Packaged extension:
-  $EXT_DIR/*.vsix
+Packaged extensions:
+$(for f in "${VSIX_OUTPUTS[@]}"; do echo "  $f"; done)
 
 Strict matrix mode:
   STRICT_MATRIX=$STRICT_MATRIX
+Package targets:
+  ${SELECTED_TARGETS[*]}
 MSG

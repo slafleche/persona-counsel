@@ -61,11 +61,16 @@ Build backend artifact for current platform:
 ./scripts/build_vscode_backend.sh
 ```
 
-Package extension:
+Package extensions (per target):
 
 ```bash
 ./scripts/package_vscode_extension.sh
 ```
+
+This emits one `.vsix` per target, for example:
+
+- `extension/persona-counsel-vscode-darwin-arm64.vsix`
+- `extension/persona-counsel-vscode-linux-x64.vsix`
 
 Strict matrix-gated packaging:
 
@@ -83,6 +88,12 @@ Custom CI target set example:
 
 ```bash
 REQUIRED_TARGETS="darwin-arm64 linux-x64" ./scripts/release_vscode_extension.sh
+```
+
+Package only selected target outputs:
+
+```bash
+PACKAGE_TARGETS="darwin-arm64 linux-x64" ./scripts/package_vscode_extension.sh
 ```
 
 ## Validation

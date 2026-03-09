@@ -30,13 +30,18 @@ Examples:
 - `backend/linux-x64/counsel`
 - `backend/win32-x64/counsel.exe`
 
-## Package the Extension (.vsix)
+## Package Extensions (.vsix per target)
 
 From repo root:
 
 ```bash
 ./scripts/package_vscode_extension.sh
 ```
+
+This produces one VSIX per selected target, for example:
+
+- `extension/persona-counsel-vscode-darwin-arm64.vsix`
+- `extension/persona-counsel-vscode-linux-x64.vsix`
 
 What it does:
 
@@ -45,6 +50,13 @@ What it does:
 - copies artifacts into `extension/backend/`
 - builds extension TypeScript output
 - packages `.vsix` via `vsce` (or `npx @vscode/vsce`)
+
+Optional target subset for packaging:
+
+```bash
+PACKAGE_TARGETS="darwin-arm64 linux-x64" ./scripts/package_vscode_extension.sh
+```
+
 
 ## Backend Artifact Manifest
 

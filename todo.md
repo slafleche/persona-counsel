@@ -1,5 +1,5 @@
 - [x] Build all target backends in CI (`darwin-arm64`, `darwin-x64`, `linux-x64`, `win32-x64`).
-- [ ] Add multi-platform packaging strategy (single universal `.vsix` with all binaries or per-platform `.vsix` outputs).
+- [x] Add multi-platform packaging strategy (single universal `.vsix` with all binaries or per-platform `.vsix` outputs).
 - [ ] Test extension on clean machines with no Python/counsel preinstalled.
 - [ ] Add first-run bootstrap UX in extension for missing/incompatible backend detection and guided remediation.
 - [ ] Add explicit unsupported-platform handling when no bundled backend target matches host platform/arch.

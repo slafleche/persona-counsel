@@ -20,6 +20,7 @@ Flow:
 Notes:
   - Targets are enforced by scripts/check_vscode_backend_matrix.sh
   - Override target set with REQUIRED_TARGETS (space-separated)
+  - Optionally limit packaged outputs with PACKAGE_TARGETS (space-separated)
   - For cross-platform release, collect artifacts from CI/build machines into:
       build/vscode-backend-artifacts/<platform>-<arch>/counsel(.exe)
 TXT
@@ -50,6 +51,6 @@ if [[ "$BUILD_LOCAL" == "1" ]]; then
 fi
 
 ./scripts/check_vscode_backend_matrix.sh
-STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+STRICT_MATRIX=1 PACKAGE_TARGETS="${PACKAGE_TARGETS:-}" ./scripts/package_vscode_extension.sh
 
 echo "release-vscode-extension: ok"
