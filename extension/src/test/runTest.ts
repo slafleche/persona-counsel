@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { pathToFileURL } from "node:url";
 import { runTests } from "@vscode/test-electron";
 
 async function main(): Promise<void> {
@@ -11,11 +12,12 @@ async function main(): Promise<void> {
       "test-fixture/workspace",
     );
     fs.mkdirSync(testWorkspace, { recursive: true });
+    const testWorkspaceUri = pathToFileURL(testWorkspace).toString();
 
     await runTests({
       extensionDevelopmentPath,
       extensionTestsPath,
-      launchArgs: [testWorkspace, "--disable-workspace-trust"],
+      launchArgs: ["--disable-workspace-trust", "--folder-uri", testWorkspaceUri],
     });
   } catch (error) {
     console.error("Failed to run extension tests");

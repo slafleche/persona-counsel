@@ -287,6 +287,15 @@ async function showBackendBootstrapHelp(
   }
 }
 
+function showBackendBootstrapHelpAsync(
+  output: vscode.OutputChannel,
+  operation: string,
+  message: string,
+  strictLaunchPolicy: boolean,
+): void {
+  void showBackendBootstrapHelp(output, operation, message, strictLaunchPolicy);
+}
+
 async function preflightBackend(
   extensionPath: string,
   output: vscode.OutputChannel,
@@ -300,7 +309,7 @@ async function preflightBackend(
     const message = error instanceof Error ? error.message : String(error);
     logSection(output, `${operation}-preflight-error`, message);
     output.appendLine("");
-    await showBackendBootstrapHelp(output, operation, message, strictLaunchPolicy);
+    showBackendBootstrapHelpAsync(output, operation, message, strictLaunchPolicy);
     return null;
   }
 }
