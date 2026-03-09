@@ -44,6 +44,12 @@ Release command (strict matrix + packaging):
 ./scripts/release_vscode_extension.sh
 ```
 
+Custom target set (CI/staged release):
+
+```bash
+REQUIRED_TARGETS="darwin-arm64 linux-x64" ./scripts/release_vscode_extension.sh
+```
+
 Local validation command:
 
 ```bash

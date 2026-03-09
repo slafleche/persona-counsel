@@ -11,8 +11,13 @@ DEFAULT_TARGETS=(
   "win32-x64"
 )
 
-targets=("${@:-${DEFAULT_TARGETS[*]}}")
-if [[ $# -eq 0 ]]; then
+targets=()
+if [[ $# -gt 0 ]]; then
+  targets=("$@")
+elif [[ -n "${REQUIRED_TARGETS:-}" ]]; then
+  # shellcheck disable=SC2206
+  targets=(${REQUIRED_TARGETS})
+else
   targets=("${DEFAULT_TARGETS[@]}")
 fi
 

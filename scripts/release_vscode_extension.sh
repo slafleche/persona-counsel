@@ -14,11 +14,12 @@ Options:
 
 Flow:
   1) (optional) build local backend artifact
-  2) require full backend target matrix
+  2) require backend target matrix
   3) package extension with STRICT_MATRIX=1
 
 Notes:
-  - Full matrix targets are enforced by scripts/check_vscode_backend_matrix.sh
+  - Targets are enforced by scripts/check_vscode_backend_matrix.sh
+  - Override target set with REQUIRED_TARGETS (space-separated)
   - For cross-platform release, collect artifacts from CI/build machines into:
       build/vscode-backend-artifacts/<platform>-<arch>/counsel(.exe)
 TXT

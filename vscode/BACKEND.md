@@ -78,6 +78,12 @@ Default required targets:
 - `linux-x64`
 - `win32-x64`
 
+Override targets via env (space-separated):
+
+```bash
+REQUIRED_TARGETS="darwin-arm64 linux-x64" ./scripts/check_vscode_backend_matrix.sh
+```
+
 Enforce this gate during packaging:
 
 ```bash
