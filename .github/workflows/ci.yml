@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate CLI + Extension Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python package
+        run: python -m pip install -e .
+
+      - name: Validate local CLI
+        run: ./scripts/validate_local_cli.sh
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: extension
+
+      - name: Build extension
+        run: npm run build
+        working-directory: extension
+
+  package-macos:
+    name: Package VSIX (darwin-arm64)
+    runs-on: macos-14
+    needs:
+      - validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Build backend artifact
+        run: ./scripts/build_vscode_backend.sh
+
+      - name: Matrix preflight (CI target set)
+        run: REQUIRED_TARGETS="darwin-arm64" ./scripts/check_vscode_backend_matrix.sh
+
+      - name: Package extension with strict gate
+        run: REQUIRED_TARGETS="darwin-arm64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: persona-counsel-vsix-darwin-arm64
+          path: extension/*.vsix
