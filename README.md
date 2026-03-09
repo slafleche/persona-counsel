@@ -38,6 +38,12 @@ Strict release gate (all target backends required):
 STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
 ```
 
+Release command (strict matrix + packaging):
+
+```bash
+./scripts/release_vscode_extension.sh
+```
+
 Local validation command:
 
 ```bash

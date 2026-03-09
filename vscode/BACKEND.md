@@ -84,6 +84,22 @@ Enforce this gate during packaging:
 STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
 ```
 
+## Release Command
+
+Run strict release flow:
+
+```bash
+./scripts/release_vscode_extension.sh
+```
+
+Optional: build current host target first:
+
+```bash
+./scripts/release_vscode_extension.sh --build-local
+```
+
+This command requires full target coverage before packaging.
+
 ## Extension Integration Model
 
 - Ship platform-specific binaries inside the extension package.
