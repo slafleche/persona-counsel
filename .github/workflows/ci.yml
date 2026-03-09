@@ -124,6 +124,9 @@ jobs:
       - name: Package extension with strict gate
         run: REQUIRED_TARGETS="darwin-arm64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
 
+      - name: Verify packaged VSIX backend integrity
+        run: python scripts/verify_vsix_backend_integrity.py extension/persona-counsel-vscode-darwin-arm64.vsix darwin-arm64
+
       - name: Upload VSIX
         uses: actions/upload-artifact@v4
         with:
@@ -165,6 +168,10 @@ jobs:
         shell: bash
         run: REQUIRED_TARGETS="win32-x64" PACKAGE_TARGETS="win32-x64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
 
+      - name: Verify packaged VSIX backend integrity
+        shell: bash
+        run: python scripts/verify_vsix_backend_integrity.py extension/persona-counsel-vscode-win32-x64.vsix win32-x64
+
       - name: Upload VSIX
         uses: actions/upload-artifact@v4
         with:
@@ -205,6 +212,10 @@ jobs:
       - name: Package extension with strict gate
         shell: bash
         run: REQUIRED_TARGETS="linux-x64" PACKAGE_TARGETS="linux-x64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+
+      - name: Verify packaged VSIX backend integrity
+        shell: bash
+        run: python scripts/verify_vsix_backend_integrity.py extension/persona-counsel-vscode-linux-x64.vsix linux-x64
 
       - name: Upload VSIX
         uses: actions/upload-artifact@v4
