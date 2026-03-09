@@ -221,10 +221,6 @@ const bumpPrereleaseOnly = (parsed) => ({
 
 const chooseBumpType = async () => {
   if (!ALLOW_STABLE_RELEASE) {
-    const choice = await prompt('Prerelease lock is ON. Increment prerelease number? (y/N)', 'y');
-    if (!/^y(es)?$/i.test(choice)) {
-      throw new StepError('Release cancelled before version bump.');
-    }
     return 'prerelease';
   }
 
@@ -289,10 +285,12 @@ const ensurePythonReleaseTooling = () => {
 
 const collectPythonDistFiles = (version) => {
   const distDir = path.join(process.cwd(), 'dist');
-  const normalized = String(version).replace(/\./g, '_');
+  const rawVersion = String(version).trim();
+  const escapedVersion = rawVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const versionPattern = new RegExp(`-${escapedVersion}(?:[-+.]|\\.tar\\.gz|\\.whl)`);
   const files = readdirSync(distDir)
     .filter((name) => name.endsWith('.whl') || name.endsWith('.tar.gz'))
-    .filter((name) => name.includes(normalized))
+    .filter((name) => versionPattern.test(name))
     .map((name) => path.join('dist', name));
   if (files.length === 0) {
     throw new StepError(`No Python distribution files found under dist/ for version ${version}.`);
@@ -325,6 +323,38 @@ const rollbackVersions = (rollbackState) => {
   );
 };
 
+const printReleasePlan = ({
+  bumpType,
+  currentPythonVersion,
+  nextPythonVersion,
+  currentExtensionVersion,
+  nextExtensionVersion,
+  pythonRepository,
+  vsixTargets,
+  isDryRun,
+}) => {
+  console.log(isDryRun ? '\nRelease dry run plan:' : '\nRelease plan:');
+  console.log(
+    `- version bump (${bumpType}): python ${fmtVersion(currentPythonVersion)} -> ${fmtNextVersion(nextPythonVersion)}, ` +
+    `vscode ${fmtVersion(currentExtensionVersion)} -> ${fmtNextVersion(nextExtensionVersion)}`,
+  );
+  console.log(`- python package: persona-counsel@${fmtNextVersion(nextPythonVersion)} -> ${pythonRepository}`);
+  console.log(`- vscode extension: persona-counsel-vscode@${fmtNextVersion(nextExtensionVersion)} -> VS Code Marketplace`);
+  console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
+  if (BUILD_LOCAL_BACKEND) {
+    console.log(`- backend packaging: include local target build (${fmtHint('BUILD_LOCAL_BACKEND=1')})`);
+  }
+  if (SKIP_PYTHON_PUBLISH) {
+    console.log(`- python publishing skipped (${fmtHint('SKIP_PYTHON_PUBLISH=1')})`);
+  }
+  if (SKIP_VSCODE_PUBLISH) {
+    console.log(`- vscode publishing skipped (${fmtHint('SKIP_VSCODE_PUBLISH=1')})`);
+  }
+  if (!ALLOW_STABLE_RELEASE) {
+    console.log(`- stable release lock: ${fmtHint('ON')} (flip ALLOW_STABLE_RELEASE=true to disable)`);
+  }
+};
+
 const main = async () => {
   const isDryRun = process.argv.slice(2).includes('--dry-run');
   let releasePython = 'python3';
@@ -349,32 +379,23 @@ const main = async () => {
     const vsixTargets = readVsixTargets();
     const vsixFiles = vsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
 
+    printReleasePlan({
+      bumpType,
+      currentPythonVersion,
+      nextPythonVersion,
+      currentExtensionVersion,
+      nextExtensionVersion,
+      pythonRepository: PYTHON_REPOSITORY,
+      vsixTargets,
+      isDryRun,
+    });
+
     if (isDryRun) {
-      console.log('\nRelease dry run plan:');
-      console.log(
-        `- version bump (${bumpType}): python ${fmtVersion(currentPythonVersion)} -> ${fmtNextVersion(nextPythonVersion)}, ` +
-        `vscode ${fmtVersion(currentExtensionVersion)} -> ${fmtNextVersion(nextExtensionVersion)}`,
-      );
-      console.log(`- python package: persona-counsel@${fmtNextVersion(nextPythonVersion)} -> ${PYTHON_REPOSITORY}`);
-      console.log(`- vscode extension: persona-counsel-vscode@${fmtNextVersion(nextExtensionVersion)} -> VS Code Marketplace`);
-      console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
-      if (BUILD_LOCAL_BACKEND) {
-        console.log(`- backend packaging: include local target build (${fmtHint('BUILD_LOCAL_BACKEND=1')})`);
-      }
-      if (SKIP_PYTHON_PUBLISH) {
-        console.log(`- python publishing skipped (${fmtHint('SKIP_PYTHON_PUBLISH=1')})`);
-      }
-      if (SKIP_VSCODE_PUBLISH) {
-        console.log(`- vscode publishing skipped (${fmtHint('SKIP_VSCODE_PUBLISH=1')})`);
-      }
-      if (!ALLOW_STABLE_RELEASE) {
-        console.log(`- stable release lock: ${fmtHint('ON')} (flip ALLOW_STABLE_RELEASE=true to disable)`);
-      }
       process.exit(0);
     }
 
     const confirm = await prompt(
-      `Publish synchronized release ${nextPythonVersion} / ${nextExtensionVersion}? (y/N)`,
+      `Publish synchronized release ${fmtNextVersion(nextPythonVersion)} / ${fmtNextVersion(nextExtensionVersion)}? (y/N)`,
       'n',
     );
     if (!/^y(es)?$/i.test(confirm)) {
