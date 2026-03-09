@@ -4,6 +4,11 @@
   "description": "Thin VS Code wrapper for persona-counsel CLI",
   "version": "0.0.1",
   "publisher": "persona-counsel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/persona-counsel/persona-counsel.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
