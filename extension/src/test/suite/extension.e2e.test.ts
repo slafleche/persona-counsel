@@ -46,6 +46,9 @@ type E2ETestCase = {
 };
 
 async function resetState(root: string): Promise<void> {
+  for (const terminal of vscode.window.terminals) {
+    terminal.dispose();
+  }
   for (const dirname of ["personas", "counsels", "sessions"]) {
     fs.rmSync(path.join(root, dirname), { recursive: true, force: true });
   }
@@ -121,5 +124,8 @@ export async function runE2ETests(): Promise<void> {
       console.error(`[e2e] FAIL: ${t.name}`);
       throw error;
     }
+  }
+  for (const terminal of vscode.window.terminals) {
+    terminal.dispose();
   }
 }
