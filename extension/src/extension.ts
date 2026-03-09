@@ -57,6 +57,10 @@ function readBundledManifest(extensionPath: string): BackendManifest | null {
   }
 }
 
+function getCurrentTarget(): string {
+  return `${process.platform}-${process.arch}`;
+}
+
 function getBundledBinaryPath(extensionPath: string): string {
   const platform = process.platform;
   const arch = process.arch;
@@ -85,6 +89,39 @@ function resolveCounselExecutable(extensionPath: string): string {
 
   const bundledPath = getBundledBinaryPath(extensionPath);
   if (isExecutable(bundledPath)) {
+    const manifest = readBundledManifest(extensionPath);
+    if (!manifest) {
+      throw new Error(
+        "Bundled backend found but backend/manifest.json is missing or invalid.",
+      );
+    }
+
+    const target = getCurrentTarget();
+    const entry = manifest.targets.find((item) => item.target === target);
+    if (!entry) {
+      throw new Error(
+        `Bundled backend target ${target} is not declared in backend/manifest.json.`,
+      );
+    }
+
+    const expectedRelative = path.join(
+      "backend",
+      entry.relativePath.split("/").join(path.sep),
+    );
+    const expectedAbsolute = path.join(extensionPath, expectedRelative);
+    if (path.resolve(expectedAbsolute) !== path.resolve(bundledPath)) {
+      throw new Error(
+        `Bundled backend path mismatch for target ${target}: manifest=${expectedAbsolute} resolved=${bundledPath}`,
+      );
+    }
+
+    const expectedFile = path.basename(expectedAbsolute);
+    if (expectedFile !== path.basename(bundledPath)) {
+      throw new Error(
+        `Bundled backend filename mismatch for target ${target}: manifest=${expectedFile} resolved=${path.basename(bundledPath)}`,
+      );
+    }
+
     return bundledPath;
   }
 
