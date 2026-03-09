@@ -80,6 +80,8 @@ function resolveCounselExecutable(extensionPath: string): string {
   const config = vscode.workspace.getConfiguration("personaCounsel");
   const overridePath = (config.get<string>("backendPath") ?? "").trim();
   const allowPathFallback = config.get<boolean>("allowPathFallback", true);
+  const target = getCurrentTarget();
+  const manifest = readBundledManifest(extensionPath);
 
   if (overridePath.length > 0) {
     if (!path.isAbsolute(overridePath)) {
@@ -95,16 +97,23 @@ function resolveCounselExecutable(extensionPath: string): string {
     return overridePath;
   }
 
+  if (manifest) {
+    const declaredTargets = manifest.targets.map((item) => item.target);
+    if (!declaredTargets.includes(target)) {
+      throw new Error(
+        `Unsupported platform target for bundled backend: ${target}. Bundled targets: ${declaredTargets.join(", ") || "none"}.`,
+      );
+    }
+  }
+
   const bundledPath = getBundledBinaryPath(extensionPath);
   if (isExecutable(bundledPath)) {
-    const manifest = readBundledManifest(extensionPath);
     if (!manifest) {
       throw new Error(
         "Bundled backend found but backend/manifest.json is missing or invalid.",
       );
     }
 
-    const target = getCurrentTarget();
     const entry = manifest.targets.find((item) => item.target === target);
     if (!entry) {
       throw new Error(

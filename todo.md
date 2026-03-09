@@ -4,7 +4,7 @@
 - [x] Add Windows clean-machine VSIX smoke test for bundled `counsel.exe`.
 - [x] Expand smoke tests to cover `--help/--version` and path compatibility (spaces + Unicode).
 - [x] Add first-run bootstrap UX in extension for missing/incompatible backend detection and guided remediation.
-- [ ] Add explicit unsupported-platform handling when no bundled backend target matches host platform/arch.
+- [x] Add explicit unsupported-platform handling when no bundled backend target matches host platform/arch.
 - [ ] Harden backend launch policy with strict mode to disable PATH fallback for marketplace builds.
 - [ ] Add extension E2E automation for `openTerminal`, `doctor`, `setup`, and failure paths.
 - [ ] Add Linux clean-machine VSIX smoke test (even if not officially supported yet).

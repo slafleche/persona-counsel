@@ -58,6 +58,11 @@ Expected:
 - Open an untrusted workspace
 - Expected: command execution blocked with explicit trust error.
 
+4. Unsupported host target for bundled backend
+- Package/install a `.vsix` that does not include current `platform-arch` target
+- Expected: clear error like `Unsupported platform target for bundled backend: ...`
+  with guidance actions (`Show Output`, `Open Settings`).
+
 ## Packaging Check
 
 Run:
