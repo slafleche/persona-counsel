@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 
 const execFileAsync = promisify(execFile);
 
@@ -59,6 +60,13 @@ function readBundledManifest(extensionPath: string): BackendManifest | null {
 
 function getCurrentTarget(): string {
   return `${process.platform}-${process.arch}`;
+}
+
+function sha256File(filePath: string): string {
+  const hash = createHash("sha256");
+  const buffer = fs.readFileSync(filePath);
+  hash.update(buffer);
+  return hash.digest("hex");
 }
 
 function getBundledBinaryPath(extensionPath: string): string {
@@ -120,6 +128,16 @@ function resolveCounselExecutable(extensionPath: string): string {
       throw new Error(
         `Bundled backend filename mismatch for target ${target}: manifest=${expectedFile} resolved=${path.basename(bundledPath)}`,
       );
+    }
+
+    const verifyBundledHash = config.get<boolean>("verifyBundledHash", true);
+    if (verifyBundledHash) {
+      const actualHash = sha256File(bundledPath);
+      if (actualHash !== entry.sha256) {
+        throw new Error(
+          `Bundled backend SHA-256 mismatch for target ${target}.`,
+        );
+      }
     }
 
     return bundledPath;

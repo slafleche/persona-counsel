@@ -65,6 +65,11 @@
           "minimum": 1000,
           "maximum": 300000,
           "description": "Timeout in milliseconds for backend command execution."
+        },
+        "personaCounsel.verifyBundledHash": {
+          "type": "boolean",
+          "default": true,
+          "description": "Verify SHA-256 of bundled backend binary against backend/manifest.json before execution."
         }
       }
     }

@@ -140,3 +140,5 @@ Extension settings:
   - block backend execution in untrusted workspaces when enabled
 - `personaCounsel.commandTimeoutMs`
   - timeout for backend command execution
+- `personaCounsel.verifyBundledHash`
+  - verify bundled backend SHA-256 against `backend/manifest.json` before execution
