@@ -2,7 +2,7 @@
   "name": "persona-counsel-vscode",
   "displayName": "Persona Counsel",
   "description": "Thin VS Code wrapper for persona-counsel CLI",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "publisher": "persona-counsel",
   "license": "MIT",
   "homepage": "https://github.com/slafleche/persona-counsel",
@@ -19,6 +19,7 @@
   "categories": [
     "Other"
   ],
+  "preview": true,
   "activationEvents": [
     "onCommand:personaCounsel.showOutput",
     "onCommand:personaCounsel.openTerminal",
