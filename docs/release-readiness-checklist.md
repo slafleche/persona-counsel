@@ -19,9 +19,12 @@
 
 ## Packaging
 
-- [ ] `./scripts/package_vscode_extension.sh` succeeds
-- [ ] `.vsix` produced under `extension/`
-- [ ] Included backend folder in package matches target platform(s)
+- [ ] `./scripts/release_vscode_extension.sh` succeeds
+- [ ] Target VSIX files produced under `extension/`:
+  - `persona-counsel-vscode-darwin-arm64.vsix`
+  - `persona-counsel-vscode-linux-x64.vsix`
+  - `persona-counsel-vscode-win32-x64.vsix`
+- [ ] Included backend folder in each package matches target platform
 
 ## Safety
 

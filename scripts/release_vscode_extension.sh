@@ -51,6 +51,11 @@ if [[ "$BUILD_LOCAL" == "1" ]]; then
 fi
 
 ./scripts/check_vscode_backend_matrix.sh
-STRICT_MATRIX=1 PACKAGE_TARGETS="${PACKAGE_TARGETS:-}" ./scripts/package_vscode_extension.sh
+
+if [[ -z "${PACKAGE_TARGETS:-}" ]]; then
+  PACKAGE_TARGETS="darwin-arm64 linux-x64 win32-x64"
+fi
+
+STRICT_MATRIX=1 PACKAGE_TARGETS="$PACKAGE_TARGETS" ./scripts/package_vscode_extension.sh
 
 echo "release-vscode-extension: ok"

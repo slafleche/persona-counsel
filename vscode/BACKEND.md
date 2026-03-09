@@ -110,6 +110,12 @@ Run strict release flow:
 ./scripts/release_vscode_extension.sh
 ```
 
+Default packaged targets for release flow:
+
+- `darwin-arm64`
+- `linux-x64`
+- `win32-x64`
+
 Optional: build current host target first:
 
 ```bash

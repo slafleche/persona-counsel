@@ -13,7 +13,7 @@
 - [x] Add artifact integrity check in CI (verify manifest/hash against packaged VSIX contents post-build).
 - [x] Add upgrade/migration check (install old VSIX -> update to new VSIX -> commands still work).
 - [ ] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.
-- [ ] Add `win32-x64` VSIX to the standard release packaging outputs (not smoke-only).
+- [x] Add `win32-x64` VSIX to the standard release packaging outputs (not smoke-only).
 - [ ] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
 - [ ] Lock release metadata (final publisher/name/repository/license links and changelog flow).
 - [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
