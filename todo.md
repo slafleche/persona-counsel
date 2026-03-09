@@ -15,7 +15,7 @@
 - [ ] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.
 - [x] Add `win32-x64` VSIX to the standard release packaging outputs (not smoke-only).
 - [ ] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
-- [ ] Lock release metadata (final publisher/name/repository/license links and changelog flow).
+- [x] Lock release metadata (final publisher/name/repository/license links and changelog flow).
 - [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
 - [ ] Add minimal in-extension user docs and troubleshooting commands (install, backend diagnostics, recovery).
 - [ ] Refactor release script to stop npm publishing and publish to Python package indexes + VS Code Marketplace while keeping generic release orchestration logic.

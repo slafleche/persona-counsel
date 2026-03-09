@@ -5,9 +5,13 @@
   "version": "0.0.1",
   "publisher": "persona-counsel",
   "license": "MIT",
+  "homepage": "https://github.com/slafleche/persona-counsel",
+  "bugs": {
+    "url": "https://github.com/slafleche/persona-counsel/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/persona-counsel/persona-counsel.git"
+    "url": "https://github.com/slafleche/persona-counsel.git"
   },
   "engines": {
     "vscode": "^1.90.0"

@@ -6,6 +6,11 @@
 - [ ] Artifacts exist under `build/vscode-backend-artifacts/<platform>-<arch>/`
 - [ ] Binary name is correct (`counsel` or `counsel.exe`)
 
+## Release Metadata
+
+- [ ] `python scripts/verify_release_metadata.py` passes
+- [ ] `CHANGELOG.md` updated under `## [Unreleased]` before tagging
+
 ## Extension Build
 
 - [ ] `cd extension && npm install`
