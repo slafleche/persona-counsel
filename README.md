@@ -1,9 +1,44 @@
 # persona-counsel
 
-CLI-first multi-agent runtime (Python), with planned VS Code integration as a
-thin client.
+`persona-counsel` is a Python CLI-first orchestration project for running a
+team of AI personas (a "counsel") in a deterministic workflow.
 
-## Quickstart
+The core idea:
+
+- terminal-first product
+- config-driven personas and counsels
+- deterministic orchestrator (no hidden LLM control flow)
+- future VS Code UX as a thin client on top of the same backend
+
+## Current Status
+
+This repo is in foundation stage.
+
+Implemented now:
+
+- Python CLI package (`counsel`)
+- `counsel setup`
+- `counsel doctor` and `counsel doctor --json`
+- VS Code extension shell that calls backend CLI
+- backend bundling and `.vsix` packaging scripts
+- release/validation scripts and CI workflow scaffolding
+
+Not implemented yet:
+
+- full multi-persona orchestration loop
+- interpreter persona flow
+- persona/counsel config loading and execution
+
+## Why This Project
+
+Most agent projects are either IDE-bound or nondeterministic to debug at scale.
+persona-counsel is aiming for a simpler contract:
+
+- standalone CLI is the product
+- editor integrations are optional clients
+- runtime behavior is explicit, inspectable, and scriptable
+
+## Quickstart (CLI)
 
 ```bash
 python3.11 -m pip install -e .
@@ -11,54 +46,57 @@ counsel setup
 counsel doctor --json
 ```
 
-## VS Code Readiness
+Sanity check:
 
-This project supports building a standalone backend binary for extension
-packaging so end users do not need to install Python manually.
+```bash
+which counsel
+counsel --help
+```
 
-Build command:
+## VS Code Backend Packaging
+
+Build backend artifact for current platform:
 
 ```bash
 ./scripts/build_vscode_backend.sh
 ```
 
-This also generates:
-
-- `build/vscode-backend-artifacts/manifest.json`
-
-Package extension command:
+Package extension:
 
 ```bash
 ./scripts/package_vscode_extension.sh
 ```
 
-Strict release gate (all target backends required):
+Strict matrix-gated packaging:
 
 ```bash
 STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
 ```
 
-Release command (strict matrix + packaging):
+Release flow helper:
 
 ```bash
 ./scripts/release_vscode_extension.sh
 ```
 
-Custom target set (CI/staged release):
+Custom CI target set example:
 
 ```bash
 REQUIRED_TARGETS="darwin-arm64 linux-x64" ./scripts/release_vscode_extension.sh
 ```
 
-Local validation command:
+## Validation
+
+Run local backend validation:
 
 ```bash
 ./scripts/validate_local_cli.sh
 ```
 
-See:
+## Docs
 
-- `vscode/BACKEND.md`
-- `epics/00_vision/spec.md`
-- `docs/extension-verification.md`
-- `docs/release-readiness-checklist.md`
+- Vision/spec: `epics/00_vision/spec.md`
+- Tech stack v1: `epics/00_vision/persona-counsel-tech-stack_v1.md`
+- VS Code backend contract: `vscode/BACKEND.md`
+- Extension verification runbook: `docs/extension-verification.md`
+- Release checklist: `docs/release-readiness-checklist.md`

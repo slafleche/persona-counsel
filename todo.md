@@ -1,0 +1,10 @@
+- [ ] Build all target backends in CI (`darwin-arm64`, `darwin-x64`, `linux-x64`, `win32-x64`).
+- [ ] Add multi-platform packaging strategy (single universal `.vsix` with all binaries or per-platform `.vsix` outputs).
+- [ ] Test extension on clean machines with no Python/counsel preinstalled.
+- [ ] Add first-run bootstrap UX in extension for missing/incompatible backend detection and guided remediation.
+- [ ] Add explicit unsupported-platform handling when no bundled backend target matches host platform/arch.
+- [ ] Harden backend launch policy with strict mode to disable PATH fallback for marketplace builds.
+- [ ] Add extension E2E automation for `openTerminal`, `doctor`, `setup`, and failure paths.
+- [ ] Lock release metadata (final publisher/name/repository/license links and changelog flow).
+- [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
+- [ ] Add minimal in-extension user docs and troubleshooting commands (install, backend diagnostics, recovery).
