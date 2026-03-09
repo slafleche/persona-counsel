@@ -28,7 +28,15 @@ Package extension command:
 ./scripts/package_vscode_extension.sh
 ```
 
+Local validation command:
+
+```bash
+./scripts/validate_local_cli.sh
+```
+
 See:
 
 - `vscode/BACKEND.md`
 - `epics/00_vision/spec.md`
+- `docs/extension-verification.md`
+- `docs/release-readiness-checklist.md`
