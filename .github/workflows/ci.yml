@@ -228,7 +228,8 @@ jobs:
           import json
           p = "extension/package.json"
           data = json.load(open(p, "r", encoding="utf-8"))
-          data["version"] = f'{data["version"]}-baseline.0'
+          # Use a guaranteed older semver baseline for upgrade-path checks.
+          data["version"] = "0.0.0-baseline.0"
           json.dump(data, open(p, "w", encoding="utf-8"), indent=2)
           print("baseline version:", data["version"])
           PY
