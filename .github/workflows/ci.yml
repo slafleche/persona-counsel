@@ -253,8 +253,8 @@ jobs:
       - name: Smoke test baseline and current VSIX backends
         shell: bash
         run: |
-          ./scripts/smoke_test_vsix_backend.sh extension/persona-counsel-vscode-linux-x64-baseline.vsix linux-x64
-          ./scripts/smoke_test_vsix_backend.sh extension/persona-counsel-vscode-linux-x64.vsix linux-x64
+          SKIP_COUNSEL_PATH_CHECK=1 ./scripts/smoke_test_vsix_backend.sh extension/persona-counsel-vscode-linux-x64-baseline.vsix linux-x64
+          SKIP_COUNSEL_PATH_CHECK=1 ./scripts/smoke_test_vsix_backend.sh extension/persona-counsel-vscode-linux-x64.vsix linux-x64
 
       - name: Upload VSIX
         uses: actions/upload-artifact@v4

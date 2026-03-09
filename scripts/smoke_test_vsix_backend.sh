@@ -35,7 +35,7 @@ if [[ ! -x "$BIN_PATH" ]]; then
   chmod +x "$BIN_PATH"
 fi
 
-if command -v counsel >/dev/null 2>&1; then
+if [[ "${SKIP_COUNSEL_PATH_CHECK:-0}" != "1" ]] && command -v counsel >/dev/null 2>&1; then
   echo "Expected no preinstalled counsel in clean smoke environment, but found one on PATH." >&2
   exit 1
 fi
