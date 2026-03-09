@@ -41,6 +41,42 @@ jobs:
         run: npm run build
         working-directory: extension
 
+  build-backend-matrix:
+    name: Build Backend (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    needs:
+      - validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: darwin-arm64
+          - os: macos-13
+            target: darwin-x64
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: windows-latest
+            target: win32-x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build backend artifact
+        shell: bash
+        run: ./scripts/build_vscode_backend.sh
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.target }}
+          path: build/vscode-backend-artifacts/${{ matrix.target }}/**
+
   package-macos:
     name: Package VSIX (darwin-arm64)
     runs-on: macos-14

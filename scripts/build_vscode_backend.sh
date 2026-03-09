@@ -3,6 +3,19 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  PYTHON="$PYTHON_BIN"
+elif command -v python3.11 >/dev/null 2>&1; then
+  PYTHON="python3.11"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON="python"
+else
+  echo "No compatible Python executable found (tried: python3.11, python3, python)." >&2
+  exit 1
+fi
+
 case "$(uname -s)" in
   Darwin) PLATFORM="darwin" ;;
   Linux) PLATFORM="linux" ;;
@@ -30,12 +43,12 @@ OUT_DIR="$ROOT_DIR/build/vscode-backend-artifacts/${PLATFORM}-${ARCH}"
 
 cd "$ROOT_DIR"
 
-python3.11 -m pip install -e ".[build]"
+"$PYTHON" -m pip install -e ".[build]"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 
-python3.11 -m PyInstaller \
+"$PYTHON" -m PyInstaller \
   --noconfirm \
   --clean \
   --onefile \
@@ -43,7 +56,7 @@ python3.11 -m PyInstaller \
   --distpath "$OUT_DIR" \
   scripts/pyinstaller_entry.py
 
-python3 scripts/generate_vscode_backend_manifest.py
+"$PYTHON" scripts/generate_vscode_backend_manifest.py
 
 cat <<MSG
 Built standalone backend:
