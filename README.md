@@ -95,6 +95,14 @@ Notes:
 
 - Python upload target defaults to `pypi`; set `PYTHON_REPOSITORY=testpypi` for TestPyPI.
 - VS Code publish requires `VSCE_PAT` in environment.
+- Release script keeps Python + VS Code versions synchronized and bumps both together.
+- With `ALLOW_STABLE_RELEASE=false` (current default), only prerelease increments are allowed:
+  - Python: `X.Y.ZaN` -> `X.Y.Za(N+1)`
+  - VS Code: `X.Y.Z-alpha.N` -> `X.Y.Z-alpha.(N+1)`
+- `npm run release:dry` is non-interactive and shows the default prerelease bump plan.
+- To allow `patch`/`minor`/`major` base-version bumps, set `ALLOW_STABLE_RELEASE=true` in `scripts/release.mjs`.
+- On release failure after bump, local versions are rolled back to the previous synchronized pair.
+- On release failure, legacy `./.release-tools-venv` is also cleaned up if present.
 - You can skip either channel with:
   - `SKIP_PYTHON_PUBLISH=1`
   - `SKIP_VSCODE_PUBLISH=1`
