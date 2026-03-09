@@ -112,3 +112,85 @@ jobs:
         with:
           name: persona-counsel-vsix-darwin-arm64
           path: extension/*.vsix
+
+  package-windows:
+    name: Package VSIX (win32-x64)
+    runs-on: windows-latest
+    needs:
+      - validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Build backend artifact
+        shell: bash
+        run: ./scripts/build_vscode_backend.sh
+
+      - name: Matrix preflight (CI target set)
+        shell: bash
+        run: REQUIRED_TARGETS="win32-x64" ./scripts/check_vscode_backend_matrix.sh
+
+      - name: Package extension with strict gate
+        shell: bash
+        run: REQUIRED_TARGETS="win32-x64" PACKAGE_TARGETS="win32-x64" STRICT_MATRIX=1 ./scripts/package_vscode_extension.sh
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: persona-counsel-vsix-win32-x64
+          path: extension/*.vsix
+
+  smoke-vsix-clean-machine:
+    name: Smoke Test VSIX Backend (clean machine)
+    runs-on: macos-14
+    needs:
+      - package-macos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: persona-counsel-vsix-darwin-arm64
+          path: /tmp/persona-counsel-vsix
+
+      - name: Validate bundled backend from VSIX
+        shell: bash
+        run: |
+          VSIX_PATH="$(ls /tmp/persona-counsel-vsix/*.vsix | head -n 1)"
+          ./scripts/smoke_test_vsix_backend.sh "$VSIX_PATH" darwin-arm64
+
+  smoke-vsix-clean-machine-windows:
+    name: Smoke Test VSIX Backend (clean machine windows)
+    runs-on: windows-latest
+    needs:
+      - package-windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: persona-counsel-vsix-win32-x64
+          path: ${{ runner.temp }}\persona-counsel-vsix
+
+      - name: Validate bundled backend from VSIX
+        shell: pwsh
+        run: |
+          $vsix = Get-ChildItem -Path "$env:RUNNER_TEMP\persona-counsel-vsix" -Filter *.vsix | Select-Object -First 1
+          if (-not $vsix) { throw "No VSIX found in downloaded artifact directory." }
+          ./scripts/smoke_test_vsix_backend.ps1 -VsixPath $vsix.FullName -Target win32-x64
