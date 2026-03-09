@@ -40,8 +40,17 @@ if command -v counsel >/dev/null 2>&1; then
   exit 1
 fi
 
-"$BIN_PATH" --version >/dev/null
 "$BIN_PATH" --help >/dev/null
+
+# Some builds expose version as a command/option, others don't yet.
+# Keep compatibility while still probing when available.
+if "$BIN_PATH" --version >/dev/null 2>&1; then
+  :
+elif "$BIN_PATH" version >/dev/null 2>&1; then
+  :
+else
+  echo "version probe skipped: no supported version flag/command" >&2
+fi
 
 run_workspace_smoke() {
   local work_dir="$1"

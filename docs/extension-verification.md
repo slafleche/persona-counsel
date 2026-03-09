@@ -31,7 +31,9 @@ Expected:
 
 2. Command: `Persona Counsel: Doctor`
 - Expected: success info message when backend healthy.
-- On failure: error message shown, details available in output channel.
+- On backend preflight failure: guided remediation message with actions
+  (`Show Output`, `Open Settings`, plus targeted fixes when applicable).
+- On command failure: error message shown, details available in output channel.
 
 3. Command: `Persona Counsel: Setup`
 - Expected: setup success message and baseline folders created.
@@ -48,7 +50,8 @@ Expected:
 
 2. Invalid `personaCounsel.backendPath`
 - Set to a non-executable or relative path
-- Expected: clear error indicating backend path must be absolute executable.
+- Expected: clear error indicating backend path must be absolute executable, with
+  a guided `Clear backendPath` action.
 
 3. Untrusted workspace block (if enabled)
 - Set `personaCounsel.requireTrustedWorkspace = true`

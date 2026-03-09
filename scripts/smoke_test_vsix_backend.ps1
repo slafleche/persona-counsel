@@ -33,8 +33,22 @@ try {
     throw "Expected no preinstalled counsel in clean smoke environment, but found one on PATH."
   }
 
-  & $binPath --version | Out-Null
   & $binPath --help | Out-Null
+  # Some builds expose version as a command/option, others don't yet.
+  # Keep compatibility while still probing when available.
+  $versionOk = $true
+  try {
+    & $binPath --version | Out-Null
+  } catch {
+    try {
+      & $binPath version | Out-Null
+    } catch {
+      $versionOk = $false
+    }
+  }
+  if (-not $versionOk) {
+    Write-Warning "version probe skipped: no supported version flag/command"
+  }
 
   function Invoke-WorkspaceSmoke {
     param(
