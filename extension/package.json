@@ -24,7 +24,8 @@
     "onCommand:personaCounsel.openTerminal",
     "onCommand:personaCounsel.doctor",
     "onCommand:personaCounsel.setup",
-    "onCommand:personaCounsel.exportDiagnostics"
+    "onCommand:personaCounsel.exportDiagnostics",
+    "onCommand:personaCounsel.openTroubleshooting"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -48,6 +49,10 @@
       {
         "command": "personaCounsel.exportDiagnostics",
         "title": "Persona Counsel: Export Diagnostics"
+      },
+      {
+        "command": "personaCounsel.openTroubleshooting",
+        "title": "Persona Counsel: Open Troubleshooting Guide"
       }
     ],
     "configuration": {

@@ -47,6 +47,10 @@ Expected:
   - no-workspace mode: system temp directory fallback
 - Expected: success notification includes path and reveal option.
 
+6. Command: `Persona Counsel: Open Troubleshooting Guide`
+- Expected: opens packaged markdown guide with install checks, backend-path fixes,
+  trust guidance, and recovery sequence.
+
 ## Negative Path Checks
 
 1. Missing backend and PATH fallback disabled

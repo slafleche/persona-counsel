@@ -37,7 +37,12 @@ type BackendManifest = {
 type CommandStatus = "success" | "preflight_error" | "runtime_error";
 
 type CommandResult = {
-  command: "openTerminal" | "doctor" | "setup" | "exportDiagnostics";
+  command:
+  | "openTerminal"
+  | "doctor"
+  | "setup"
+  | "exportDiagnostics"
+  | "openTroubleshooting";
   status: CommandStatus;
   message: string;
   at: string;
@@ -590,6 +595,30 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     },
   );
 
+  const openTroubleshooting = vscode.commands.registerCommand(
+    "personaCounsel.openTroubleshooting",
+    async () => {
+      try {
+        const troubleshootingPath = path.join(
+          context.extensionPath,
+          "resources",
+          "troubleshooting.md",
+        );
+        const doc = await vscode.workspace.openTextDocument(
+          vscode.Uri.file(troubleshootingPath),
+        );
+        await vscode.window.showTextDocument(doc, { preview: false });
+        setLastCommandResult("openTroubleshooting", "success", troubleshootingPath);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        setLastCommandResult("openTroubleshooting", "runtime_error", message);
+        void vscode.window.showErrorMessage(
+          `Persona Counsel troubleshooting docs failed to open: ${message}`,
+        );
+      }
+    },
+  );
+
   context.subscriptions.push(
     output,
     showOutput,
@@ -597,6 +626,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
     doctor,
     setup,
     exportDiagnostics,
+    openTroubleshooting,
   );
   return {
     getLastCommandResult: () => lastCommandResult,
