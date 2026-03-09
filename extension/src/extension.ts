@@ -76,10 +76,11 @@ function getBundledBinaryPath(extensionPath: string): string {
   return path.join(extensionPath, "backend", `${platform}-${arch}`, binaryName);
 }
 
-function resolveCounselExecutable(extensionPath: string): string {
+function resolveCounselExecutable(extensionPath: string, strictLaunchPolicy: boolean): string {
   const config = vscode.workspace.getConfiguration("personaCounsel");
   const overridePath = (config.get<string>("backendPath") ?? "").trim();
   const allowPathFallback = config.get<boolean>("allowPathFallback", true);
+  const effectiveAllowPathFallback = strictLaunchPolicy ? false : allowPathFallback;
   const target = getCurrentTarget();
   const manifest = readBundledManifest(extensionPath);
 
@@ -152,8 +153,14 @@ function resolveCounselExecutable(extensionPath: string): string {
     return bundledPath;
   }
 
-  if (allowPathFallback) {
+  if (effectiveAllowPathFallback) {
     return "counsel";
+  }
+
+  if (strictLaunchPolicy) {
+    throw new Error(
+      `No bundled backend found at ${bundledPath}. PATH fallback is blocked by strict launch policy for production builds.`,
+    );
   }
 
   throw new Error(
@@ -193,11 +200,13 @@ async function showBackendBootstrapHelp(
   output: vscode.OutputChannel,
   operation: string,
   message: string,
+  strictLaunchPolicy: boolean,
 ): Promise<void> {
   const config = vscode.workspace.getConfiguration("personaCounsel");
   const actions: string[] = ["Show Output", "Open Settings"];
 
   const canEnableFallback = message.includes("No bundled backend found")
+    && !strictLaunchPolicy
     && config.get<boolean>("allowPathFallback", true) === false;
   if (canEnableFallback) {
     actions.push("Enable PATH Fallback");
@@ -254,15 +263,16 @@ async function preflightBackend(
   extensionPath: string,
   output: vscode.OutputChannel,
   operation: string,
+  strictLaunchPolicy: boolean,
 ): Promise<string | null> {
   try {
     requireTrustedWorkspaceOrThrow(operation);
-    return resolveCounselExecutable(extensionPath);
+    return resolveCounselExecutable(extensionPath, strictLaunchPolicy);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logSection(output, `${operation}-preflight-error`, message);
     output.appendLine("");
-    await showBackendBootstrapHelp(output, operation, message);
+    await showBackendBootstrapHelp(output, operation, message, strictLaunchPolicy);
     return null;
   }
 }
@@ -321,7 +331,13 @@ function summarizeDoctor(data: DoctorJson): string {
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Persona Counsel");
+  const strictLaunchPolicy = context.extensionMode === vscode.ExtensionMode.Production;
   const manifest = readBundledManifest(context.extensionPath);
+  logSection(
+    output,
+    "launch-policy",
+    `strictPathFallback=${strictLaunchPolicy}`,
+  );
   if (manifest) {
     logSection(
       output,
@@ -346,6 +362,7 @@ export function activate(context: vscode.ExtensionContext): void {
         context.extensionPath,
         output,
         "terminal launch",
+        strictLaunchPolicy,
       );
       if (!executable) {
         return;
@@ -372,6 +389,7 @@ export function activate(context: vscode.ExtensionContext): void {
         context.extensionPath,
         output,
         "doctor",
+        strictLaunchPolicy,
       );
       if (!resolvedExecutable) {
         return;
@@ -408,6 +426,7 @@ export function activate(context: vscode.ExtensionContext): void {
         context.extensionPath,
         output,
         "setup",
+        strictLaunchPolicy,
       );
       if (!executable) {
         return;

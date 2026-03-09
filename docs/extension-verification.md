@@ -63,6 +63,11 @@ Expected:
 - Expected: clear error like `Unsupported platform target for bundled backend: ...`
   with guidance actions (`Show Output`, `Open Settings`).
 
+5. Strict launch policy blocks PATH fallback in production builds
+- In packaged/production extension mode, ensure no bundled backend exists for current target
+- Even if `personaCounsel.allowPathFallback = true`, expected behavior is block with
+  explicit strict-policy error (no PATH fallback execution).
+
 ## Packaging Check
 
 Run:
