@@ -9,7 +9,7 @@
 - [x] Add extension E2E automation for `openTerminal`, `doctor`, `setup`, and failure paths.
 - [x] Add Linux clean-machine VSIX smoke test (even if not officially supported yet).
 - [x] Add SBOM/license report for bundled Python dependencies.
-- [ ] Pin and verify build toolchain versions (PyInstaller, Python minor, Node major) in CI.
+- [x] Pin and verify build toolchain versions (PyInstaller, Python minor, Node major) in CI.
 - [ ] Add artifact integrity check in CI (verify manifest/hash against packaged VSIX contents post-build).
 - [ ] Add upgrade/migration check (install old VSIX -> update to new VSIX -> commands still work).
 - [ ] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.

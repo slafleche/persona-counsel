@@ -19,4 +19,4 @@ dependencies = [
 counsel = "persona_counsel.cli:main"
 
 [project.optional-dependencies]
-build = ["pyinstaller>=6.0"]
+build = ["pyinstaller>=6.0,<7"]
