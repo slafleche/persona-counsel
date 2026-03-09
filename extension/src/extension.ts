@@ -33,6 +33,34 @@ type BackendManifest = {
   }>;
 };
 
+type CommandStatus = "success" | "preflight_error" | "runtime_error";
+
+type CommandResult = {
+  command: "openTerminal" | "doctor" | "setup";
+  status: CommandStatus;
+  message: string;
+  at: string;
+};
+
+type ExtensionApi = {
+  getLastCommandResult: () => CommandResult | null;
+};
+
+let lastCommandResult: CommandResult | null = null;
+
+function setLastCommandResult(
+  command: CommandResult["command"],
+  status: CommandStatus,
+  message: string,
+): void {
+  lastCommandResult = {
+    command,
+    status,
+    message,
+    at: new Date().toISOString(),
+  };
+}
+
 function isExecutable(filePath: string): boolean {
   try {
     fs.accessSync(filePath, fs.constants.X_OK);
@@ -329,7 +357,7 @@ function summarizeDoctor(data: DoctorJson): string {
   ].join(" | ");
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(context: vscode.ExtensionContext): ExtensionApi {
   const output = vscode.window.createOutputChannel("Persona Counsel");
   const strictLaunchPolicy = context.extensionMode === vscode.ExtensionMode.Production;
   const manifest = readBundledManifest(context.extensionPath);
@@ -365,6 +393,7 @@ export function activate(context: vscode.ExtensionContext): void {
         strictLaunchPolicy,
       );
       if (!executable) {
+        setLastCommandResult("openTerminal", "preflight_error", "backend preflight failed");
         return;
       }
       try {
@@ -372,9 +401,11 @@ export function activate(context: vscode.ExtensionContext): void {
         logSection(output, "terminal", `launch ${executable} --help`);
         terminal.show();
         terminal.sendText(`${shellQuote(executable)} --help`, false);
+        setLastCommandResult("openTerminal", "success", "terminal launched");
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         logSection(output, "terminal-error", message);
+        setLastCommandResult("openTerminal", "runtime_error", message);
         void vscode.window.showErrorMessage(
           `Persona Counsel terminal launch failed: ${message}`,
         );
@@ -392,6 +423,7 @@ export function activate(context: vscode.ExtensionContext): void {
         strictLaunchPolicy,
       );
       if (!resolvedExecutable) {
+        setLastCommandResult("doctor", "preflight_error", "backend preflight failed");
         return;
       }
       try {
@@ -407,12 +439,15 @@ export function activate(context: vscode.ExtensionContext): void {
           void vscode.window.showInformationMessage(
             `Persona Counsel doctor (${path.basename(usedExecutable)}): ${summary}`,
           );
+          setLastCommandResult("doctor", "success", summary);
         } else {
           void vscode.window.showErrorMessage(`Persona Counsel doctor: ${summary}`);
+          setLastCommandResult("doctor", "runtime_error", summary);
           output.show(true);
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
+        setLastCommandResult("doctor", "runtime_error", message);
         void vscode.window.showErrorMessage(`Persona Counsel doctor failed: ${message}`);
         output.show(true);
       }
@@ -429,14 +464,17 @@ export function activate(context: vscode.ExtensionContext): void {
         strictLaunchPolicy,
       );
       if (!executable) {
+        setLastCommandResult("setup", "preflight_error", "backend preflight failed");
         return;
       }
       try {
         const { stdout } = await runCounsel(executable, ["setup"], output);
         const msg = stdout.trim() || "setup complete";
+        setLastCommandResult("setup", "success", msg);
         void vscode.window.showInformationMessage(`Persona Counsel setup: ${msg}`);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
+        setLastCommandResult("setup", "runtime_error", message);
         void vscode.window.showErrorMessage(`Persona Counsel setup failed: ${message}`);
         output.show(true);
       }
@@ -444,6 +482,9 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(output, showOutput, openTerminal, doctor, setup);
+  return {
+    getLastCommandResult: () => lastCommandResult,
+  };
 }
 
 export function deactivate(): void {

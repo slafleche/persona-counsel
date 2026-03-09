@@ -15,3 +15,10 @@ This file defines repo-level collaboration rules for planning and implementation
 
 - This root file is intentionally minimal.
 - Epic-specific planning/process details live in `epics/AGENTS.md`.
+
+## Dependency Approval Policy
+
+- Must: Any new third-party library/dependency requires explicit user approval
+  before adding it.
+- Must: Do not assume a library choice is acceptable unless the user explicitly
+  asks for that library or approves the proposed option first.
