@@ -13,7 +13,8 @@ From repo root:
 
 Output:
 
-- `build/vscode-backend/counsel`
+- `build/vscode-backend-artifacts/<platform>-<arch>/counsel`
+- `build/vscode-backend-artifacts/<platform>-<arch>/counsel.exe` (Windows)
 
 ## Bundled Binary Layout (Extension)
 
@@ -27,6 +28,21 @@ Examples:
 - `backend/darwin-arm64/counsel`
 - `backend/linux-x64/counsel`
 - `backend/win32-x64/counsel.exe`
+
+## Package the Extension (.vsix)
+
+From repo root:
+
+```bash
+./scripts/package_vscode_extension.sh
+```
+
+What it does:
+
+- validates backend artifacts are present
+- copies artifacts into `extension/backend/`
+- builds extension TypeScript output
+- packages `.vsix` via `vsce` (or `npx @vscode/vsce`)
 
 ## Extension Integration Model
 

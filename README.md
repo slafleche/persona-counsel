@@ -22,6 +22,12 @@ Build command:
 ./scripts/build_vscode_backend.sh
 ```
 
+Package extension command:
+
+```bash
+./scripts/package_vscode_extension.sh
+```
+
 See:
 
 - `vscode/BACKEND.md`

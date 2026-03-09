@@ -42,6 +42,7 @@ build/
 
 # VS Code extension artifacts
 extension/out/
+extension/backend/
 extension/.vscode-test/
 *.vsix
 
