@@ -23,6 +23,7 @@ vite.svg
 # Local env/config
 .env
 .env.*
+.release-state.local.json
 
 # Python
 __pycache__/

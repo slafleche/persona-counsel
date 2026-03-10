@@ -21,6 +21,7 @@ const USE_COLOR = process.stdout.isTTY && process.env.NO_COLOR !== '1';
 const PYPROJECT_PATH = path.join(process.cwd(), 'pyproject.toml');
 const EXTENSION_DIR = path.join(process.cwd(), 'extension');
 const EXTENSION_PACKAGE_PATH = path.join(EXTENSION_DIR, 'package.json');
+const RELEASE_STATE_PATH = path.join(process.cwd(), '.release-state.local.json');
 const RELEASE_TOOLS_VENV = path.join(os.tmpdir(), 'persona-counsel-release-tools-venv');
 const LEGACY_RELEASE_TOOLS_VENV = '.release-tools-venv';
 
@@ -202,6 +203,91 @@ const makeVsCodePrereleaseVersion = ({ major, minor, patch, label, prerelease })
 
 const makeVsCodeMarketplacePrereleaseVersion = ({ major, minor, prerelease }) =>
   `${major}.${minor}.${prerelease}`;
+
+const makeCanonicalPrereleaseVersion = ({ major, minor, patch, label, prerelease }) =>
+  `${major}.${minor}.${patch}-${label}.${prerelease}`;
+
+const parseCanonicalPrereleaseVersion = (version) => {
+  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)-(alpha|beta|rc)\.(\d+)$/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    label: match[4].toLowerCase(),
+    prerelease: Number(match[5]),
+  };
+};
+
+const readReleaseState = () => {
+  if (!existsSync(RELEASE_STATE_PATH)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(RELEASE_STATE_PATH, 'utf8'));
+    if (
+      !parsed
+      || typeof parsed !== 'object'
+      || typeof parsed.canonicalVersion !== 'string'
+      || typeof parsed.pythonVersion !== 'string'
+      || typeof parsed.vscodeVersion !== 'string'
+      || typeof parsed.status !== 'string'
+    ) {
+      throw new StepError(`Invalid release state format in ${RELEASE_STATE_PATH}.`);
+    }
+
+    if (!parseCanonicalPrereleaseVersion(parsed.canonicalVersion)) {
+      throw new StepError(
+        `Invalid canonicalVersion in ${RELEASE_STATE_PATH}: ${parsed.canonicalVersion}`,
+      );
+    }
+
+    return parsed;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new StepError(`Could not read release state ${RELEASE_STATE_PATH}: ${message}`);
+  }
+};
+
+const writeReleaseState = (state) => {
+  writeFileSync(RELEASE_STATE_PATH, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+};
+
+const isActiveReleaseState = (state) => state?.status === 'in_progress' || state?.status === 'failed';
+
+const targetChannelKey = (target) => `vscode_${String(target).replace(/[^a-zA-Z0-9]+/g, '_')}`;
+
+const buildReleaseState = ({
+  canonicalVersion,
+  pythonVersion,
+  vscodeVersion,
+  vsixTargets,
+}) => {
+  const channels = {};
+  channels.python = SKIP_PYTHON_PUBLISH ? 'skipped' : 'pending';
+  for (const target of vsixTargets) {
+    channels[targetChannelKey(target)] = SKIP_VSCODE_PUBLISH ? 'skipped' : 'pending';
+  }
+  return {
+    canonicalVersion,
+    pythonVersion,
+    vscodeVersion,
+    status: 'in_progress',
+    channels,
+    lastError: '',
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+const markChannel = (state, key, value) => {
+  state.channels = state.channels || {};
+  state.channels[key] = value;
+  state.updatedAt = new Date().toISOString();
+  writeReleaseState(state);
+};
 
 const ensureSynchronizedCurrentVersions = (pythonVersion, vscodeVersion) => {
   const py = parsePythonPrereleaseVersion(pythonVersion);
@@ -389,6 +475,7 @@ const rollbackVersions = (rollbackState) => {
 
 const printReleasePlan = ({
   bumpType,
+  canonicalVersion,
   currentPythonVersion,
   nextPythonVersion,
   currentExtensionVersion,
@@ -396,12 +483,17 @@ const printReleasePlan = ({
   pythonRepository,
   vsixTargets,
   isDryRun,
+  isResuming,
 }) => {
   console.log(isDryRun ? '\nRelease dry run plan:' : '\nRelease plan:');
+  console.log(`- canonical version: ${fmtNextVersion(canonicalVersion)}`);
   console.log(
     `- version bump (${bumpType}): python ${fmtVersion(currentPythonVersion)} -> ${fmtNextVersion(nextPythonVersion)}, ` +
     `vscode ${fmtVersion(currentExtensionVersion)} -> ${fmtNextVersion(nextExtensionVersion)}`,
   );
+  if (isResuming) {
+    console.log(`- release state: ${fmtHint('resume reserved version from .release-state.local.json')}`);
+  }
   console.log(`- python package: persona-counsel@${fmtNextVersion(nextPythonVersion)} -> ${pythonRepository}`);
   console.log(`- vscode extension: persona-counsel-vscode@${fmtNextVersion(nextExtensionVersion)} -> VS Code Marketplace`);
   console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
@@ -433,6 +525,7 @@ const main = async () => {
   const isDryRun = process.argv.slice(2).includes('--dry-run');
   let releasePython = 'python3';
   let rollbackState = null;
+  let releaseState = null;
 
   try {
     if (PYTHON_REPOSITORY !== EXPECTED_PYTHON_REPOSITORY) {
@@ -449,24 +542,56 @@ const main = async () => {
       currentPythonVersion,
       currentExtensionVersion,
     );
+    const existingReleaseState = readReleaseState();
+    const resumingRelease = isActiveReleaseState(existingReleaseState);
 
     enforcePrereleaseOnly(currentPythonVersion, currentExtensionVersion);
     enforceStableSigningGuardrails();
 
-    const bumpType = isDryRun ? defaultBumpType() : await chooseBumpType();
-    const nextParsed = bumpType === 'prerelease'
-      ? bumpPrereleaseOnly(currentParsed)
-      : bumpBaseVersion(currentParsed, bumpType);
-    const nextPythonVersion = makePythonPrereleaseVersion(nextParsed);
-    const nextExtensionVersion = ALLOW_STABLE_RELEASE
-      ? makeVsCodePrereleaseVersion(nextParsed)
-      : makeVsCodeMarketplacePrereleaseVersion(nextParsed);
+    const bumpType = resumingRelease
+      ? 'resume'
+      : (isDryRun ? defaultBumpType() : await chooseBumpType());
+
+    let nextPythonVersion = '';
+    let nextExtensionVersion = '';
+    let canonicalVersion = '';
+    if (resumingRelease) {
+      nextPythonVersion = existingReleaseState.pythonVersion;
+      nextExtensionVersion = existingReleaseState.vscodeVersion;
+      canonicalVersion = existingReleaseState.canonicalVersion;
+      ensureSynchronizedCurrentVersions(nextPythonVersion, nextExtensionVersion);
+    } else {
+      const nextParsed = bumpType === 'prerelease'
+        ? bumpPrereleaseOnly(currentParsed)
+        : bumpBaseVersion(currentParsed, bumpType);
+      nextPythonVersion = makePythonPrereleaseVersion(nextParsed);
+      nextExtensionVersion = ALLOW_STABLE_RELEASE
+        ? makeVsCodePrereleaseVersion(nextParsed)
+        : makeVsCodeMarketplacePrereleaseVersion(nextParsed);
+      canonicalVersion = makeCanonicalPrereleaseVersion(nextParsed);
+    }
+
     const vsixTargets = readVsixTargets();
     const requiredTargets = (process.env.REQUIRED_TARGETS?.trim() || vsixTargets.join(' '));
     const vsixFiles = vsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
+    releaseState = resumingRelease
+      ? {
+        ...existingReleaseState,
+        status: 'in_progress',
+        channels: existingReleaseState.channels || {},
+        lastError: '',
+        updatedAt: new Date().toISOString(),
+      }
+      : buildReleaseState({
+        canonicalVersion,
+        pythonVersion: nextPythonVersion,
+        vscodeVersion: nextExtensionVersion,
+        vsixTargets,
+      });
 
     printReleasePlan({
       bumpType,
+      canonicalVersion,
       currentPythonVersion,
       nextPythonVersion,
       currentExtensionVersion,
@@ -474,6 +599,7 @@ const main = async () => {
       pythonRepository: PYTHON_REPOSITORY,
       vsixTargets,
       isDryRun,
+      isResuming: resumingRelease,
     });
 
     if (isDryRun) {
@@ -493,6 +619,7 @@ const main = async () => {
       pythonVersion: currentPythonVersion,
       vscodeVersion: currentExtensionVersion,
     };
+    writeReleaseState(releaseState);
 
     writePythonVersion(nextPythonVersion);
     setExtensionVersion(nextExtensionVersion);
@@ -517,6 +644,7 @@ const main = async () => {
         ['-m', 'twine', 'upload', '--repository', PYTHON_REPOSITORY, ...distFiles],
         { env: { ...process.env, [RELEASE_ENV]: '1' } },
       );
+      markChannel(releaseState, 'python', 'success');
     }
 
     if (!SKIP_VSCODE_PUBLISH) {
@@ -543,7 +671,10 @@ const main = async () => {
         },
       );
 
-      vsixFiles.forEach((vsixFile) => publishVsixToMarketplace(vsixFile));
+      vsixFiles.forEach((vsixFile, idx) => {
+        publishVsixToMarketplace(vsixFile);
+        markChannel(releaseState, targetChannelKey(vsixTargets[idx]), 'success');
+      });
     }
 
     if (RUN_POST_RELEASE_VERIFY && !SKIP_VSCODE_PUBLISH) {
@@ -565,8 +696,21 @@ const main = async () => {
       console.log('\n> Post-release verification skipped (VS Code publish step disabled)');
     }
 
+    releaseState.status = 'complete';
+    releaseState.lastError = '';
+    releaseState.updatedAt = new Date().toISOString();
+    writeReleaseState(releaseState);
+
     console.log('\n✓ Release publish flow completed.');
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (releaseState) {
+      releaseState.status = 'failed';
+      releaseState.lastError = message;
+      releaseState.updatedAt = new Date().toISOString();
+      writeReleaseState(releaseState);
+    }
+
     try {
       rollbackVersions(rollbackState);
     } catch (rollbackError) {
@@ -574,7 +718,6 @@ const main = async () => {
       console.error(`\n✖ Rollback failed: ${message}`);
     }
 
-    const message = error instanceof Error ? error.message : String(error);
     const exitCode = error instanceof StepError ? error.exitCode : 1;
     cleanupLegacyReleaseVenv();
     console.error(`\n✖ ${message}`);

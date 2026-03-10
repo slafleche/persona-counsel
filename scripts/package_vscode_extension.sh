@@ -81,7 +81,7 @@ for target in "${SELECTED_TARGETS[@]}"; do
   fi
 
   VSIX_NAME="persona-counsel-vscode-${target}.vsix"
-  VSCE_ARGS=(package --no-dependencies --out "$VSIX_NAME")
+  VSCE_ARGS=(package --target "$target" --no-dependencies --out "$VSIX_NAME")
   if [[ "$VSCE_PRE_RELEASE" == "1" ]]; then
     VSCE_ARGS+=(--pre-release)
   fi

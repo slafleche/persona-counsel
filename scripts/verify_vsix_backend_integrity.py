@@ -8,6 +8,7 @@ import hashlib
 import json
 import zipfile
 from pathlib import PurePosixPath
+from xml.etree import ElementTree as ET
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -29,8 +30,46 @@ def normalize_relpath(value: str) -> str:
     return str(PurePosixPath(value))
 
 
+def verify_vsix_target_metadata(zf: zipfile.ZipFile, target: str) -> None:
+    try:
+        raw = zf.read("extension.vsixmanifest")
+    except KeyError as exc:
+        raise RuntimeError("Missing extension.vsixmanifest in VSIX.") from exc
+
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as exc:
+        raise RuntimeError("Invalid XML in extension.vsixmanifest.") from exc
+
+    ns = {"vsix": "http://schemas.microsoft.com/developer/vsx-schema/2011"}
+    identity = root.find(".//vsix:Metadata/vsix:Identity", ns)
+    target_platform_identity = identity.get("TargetPlatform") if identity is not None else None
+
+    install_target = root.find(".//vsix:Installation/vsix:InstallationTarget", ns)
+    target_platform_attr = (
+        install_target.get("TargetPlatform") if install_target is not None else None
+    )
+
+    target_platform_prop = None
+    for prop in root.findall(".//vsix:Metadata/vsix:Properties/vsix:Property", ns):
+        if prop.get("Id") == "Microsoft.VisualStudio.Code.TargetPlatform":
+            target_platform_prop = prop.get("Value")
+            break
+
+    declared_target = target_platform_identity or target_platform_attr or target_platform_prop
+    if not declared_target:
+        raise RuntimeError(
+            "VSIX is missing explicit target metadata; expected target-specific package.",
+        )
+    if declared_target != target:
+        raise RuntimeError(
+            f"VSIX target metadata mismatch: expected={target} declared={declared_target}",
+        )
+
+
 def verify_vsix(vsix_path: str, target: str) -> None:
     with zipfile.ZipFile(vsix_path, "r") as zf:
+        verify_vsix_target_metadata(zf, target)
         manifest = read_json_from_zip(zf, "extension/backend/manifest.json")
         targets = manifest.get("targets")
         if not isinstance(targets, list):
