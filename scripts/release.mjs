@@ -17,6 +17,7 @@ const SKIP_PYTHON_PUBLISH = process.env.SKIP_PYTHON_PUBLISH === '1';
 const SKIP_VSCODE_PUBLISH = process.env.SKIP_VSCODE_PUBLISH === '1';
 const BUILD_LOCAL_BACKEND = process.env.BUILD_LOCAL_BACKEND === '1';
 const RUN_POST_RELEASE_VERIFY = process.env.RUN_POST_RELEASE_VERIFY !== '0';
+const RECONCILE_VSCODE_ON_VERSION_MATCH = process.env.RECONCILE_VSCODE_ON_VERSION_MATCH !== '0';
 const RELEASE_ENV = 'PERSONA_COUNSEL_RELEASE';
 const ALLOW_STABLE_RELEASE = false;
 const EXPECTED_PYTHON_REPOSITORY = ALLOW_STABLE_RELEASE ? 'pypi' : 'testpypi';
@@ -685,6 +686,25 @@ const publishVsixToMarketplace = (vsixPath) => {
   );
 };
 
+const fetchMarketplaceExtensionVersion = (extensionId) => {
+  const result = spawnSync('npx', ['--yes', '@vscode/vsce', 'show', extensionId], {
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  });
+
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    console.warn(
+      `\n! Resume reconcile skipped: unable to read marketplace version for ${extensionId}${detail ? ` (${detail.split('\n').pop()})` : ''}`,
+    );
+    return '';
+  }
+
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+  const match = output.match(/^\s*Version:\s*([^\s]+)\s*$/m);
+  return match ? String(match[1]).trim() : '';
+};
+
 const rollbackVersions = (rollbackState) => {
   if (!rollbackState) {
     return;
@@ -841,9 +861,27 @@ const main = async () => {
         vsixTargets,
       });
     const pendingPython = !SKIP_PYTHON_PUBLISH && getChannelStatus(releaseState, 'python') !== 'success';
-    const pendingVsixTargets = SKIP_VSCODE_PUBLISH
+    let pendingVsixTargets = SKIP_VSCODE_PUBLISH
       ? []
       : vsixTargets.filter((target) => getChannelStatus(releaseState, targetChannelKey(target)) !== 'success');
+    if (
+      !isDryRun
+      && resumingRelease
+      && RECONCILE_VSCODE_ON_VERSION_MATCH
+      && !SKIP_VSCODE_PUBLISH
+      && pendingVsixTargets.length > 0
+    ) {
+      const marketplaceVersion = fetchMarketplaceExtensionVersion(extensionId);
+      if (marketplaceVersion && marketplaceVersion === nextExtensionVersion) {
+        console.log(
+          `\n> Resume reconcile: marketplace shows ${nextExtensionVersion}; marking pending VS Code targets as successful: ${pendingVsixTargets.join(', ')}`,
+        );
+        pendingVsixTargets.forEach((target) => {
+          markChannel(releaseState, targetChannelKey(target), 'success');
+        });
+        pendingVsixTargets = [];
+      }
+    }
     let runVsixTargets = pendingVsixTargets;
     if (
       resumingRelease
