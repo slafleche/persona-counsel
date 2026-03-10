@@ -1,5 +1,10 @@
 # Release Readiness Checklist
 
+Related docs:
+
+- `docs/release_channels.md`
+- `docs/release_signing_secrets.md`
+
 ## Backend Artifacts
 
 - [ ] `./scripts/build_vscode_backend.sh` completed for target platform(s)

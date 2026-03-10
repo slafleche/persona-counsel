@@ -36,7 +36,12 @@ echo "post-release-verify: local python version: ${LOCAL_PYTHON_VERSION}"
 echo "post-release-verify: checking extension id: ${EXTENSION_ID}"
 
 VSCE_OUT="$(npx --yes @vscode/vsce show "${EXTENSION_ID}" 2>&1)" || fail "VS Code listing not found for ${EXTENSION_ID}" 3
-REMOTE_EXTENSION_VERSION="$(printf '%s\n' "$VSCE_OUT" | sed -n 's/^[[:space:]]*Version:[[:space:]]*//p' | head -n 1)"
+REMOTE_EXTENSION_VERSION="$(
+  printf '%s\n' "$VSCE_OUT" \
+    | sed -n 's/^[[:space:]]*Version:[[:space:]]*//p' \
+    | head -n 1 \
+    | sed 's/[[:space:]]*$//'
+)"
 [[ -n "$REMOTE_EXTENSION_VERSION" ]] || fail "Could not parse remote extension version for ${EXTENSION_ID}" 4
 
 if [[ "$REMOTE_EXTENSION_VERSION" != "$LOCAL_EXTENSION_VERSION" ]]; then

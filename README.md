@@ -157,4 +157,6 @@ Run local backend validation:
 - VS Code backend contract: `vscode/BACKEND.md`
 - Extension verification runbook: `docs/extension-verification.md`
 - Release checklist: `docs/release-readiness-checklist.md`
+- Release channels runbook: `docs/release_channels.md`
 - Signing/notary secrets contract: `docs/release_signing_secrets.md`
+- Python dependency locking: `docs/python_dependency_locking.md`

@@ -7,24 +7,24 @@
 
 - [x] Add `post-release` verification script (Marketplace listing, package index version, extension ID consistency).
 - [x] Create `scripts/post_release_verify.sh` with clear pass/fail exit codes.
-- [ ] Verify VS Code listing exists for `PersonaCouncel.persona-counsel-vscode`.
-- [ ] Verify VS Code version matches local extension version.
+- [x] Verify VS Code listing exists for `PersonaCouncel.persona-counsel-vscode`.
+- [x] Verify VS Code version matches local extension version.
 - [ ] Verify TestPyPI/PyPI version matches local Python version based on release mode.
 - [x] Add script usage docs to README release section.
 
-- [ ] Write one-page release channels runbook (`alpha/prerelease` flow vs `stable` flow).
-- [ ] Add `docs/release_channels.md`.
-- [ ] Document prerelease path: version bump behavior, targets, required env vars, expected outputs.
-- [ ] Document stable path: required signing/notary env vars and hard-fail guardrails.
-- [ ] Document rollback behavior on release failure.
-- [ ] Link runbook from README and release checklist.
+- [x] Write one-page release channels runbook (`alpha/prerelease` flow vs `stable` flow).
+- [x] Add `docs/release_channels.md`.
+- [x] Document prerelease path: version bump behavior, targets, required env vars, expected outputs.
+- [x] Document stable path: required signing/notary env vars and hard-fail guardrails.
+- [x] Document rollback behavior on release failure.
+- [x] Link runbook from README and release checklist.
 
-- [ ] Lock Python runtime dependency baseline for reproducible releases.
-- [ ] Choose locking approach (`pip-tools` or equivalent) and document rationale.
-- [ ] Generate lock file(s) for runtime dependencies.
-- [ ] Update install/release scripts to consume lock file(s) where appropriate.
-- [ ] Add lock refresh workflow (manual command + cadence).
-- [ ] Validate lock flow in CI.
+- [x] Lock Python runtime dependency baseline for reproducible releases.
+- [x] Choose locking approach (`pip-tools` or equivalent) and document rationale.
+- [x] Generate lock file(s) for runtime dependencies.
+- [x] Update install/release scripts to consume lock file(s) where appropriate.
+- [x] Add lock refresh workflow (manual command + cadence).
+- [x] Validate lock flow in CI.
 
 -- Stop Here --
 

@@ -43,7 +43,7 @@ OUT_DIR="$ROOT_DIR/build/vscode-backend-artifacts/${PLATFORM}-${ARCH}"
 
 cd "$ROOT_DIR"
 
-"$PYTHON" -m pip install -e ".[build]"
+PIP_CONSTRAINT="requirements/runtime.lock" "$PYTHON" -m pip install -e ".[build]"
 "$PYTHON" scripts/verify_toolchain_versions.py --check-python --check-pyinstaller
 
 rm -rf "$OUT_DIR"
