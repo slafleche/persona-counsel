@@ -47,8 +47,8 @@ def verify_extension_package() -> None:
     data = json.loads(package_json.read_text(encoding="utf-8"))
 
     require(
-        data.get("publisher") == "persona-counsel",
-        "extension/package.json: publisher must be persona-counsel",
+        data.get("publisher") == "PersonaCouncel",
+        "extension/package.json: publisher must be PersonaCouncel",
     )
     require(data.get("license") == "MIT", "extension/package.json: license must be MIT")
     require(data.get("homepage") == EXPECTED_REPO, "extension/package.json: homepage mismatch")

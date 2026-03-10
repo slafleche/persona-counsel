@@ -2,8 +2,8 @@
   "name": "persona-counsel-vscode",
   "displayName": "Persona Counsel",
   "description": "Thin VS Code wrapper for persona-counsel CLI",
-  "version": "0.1.0-alpha.1",
-  "publisher": "persona-counsel",
+  "version": "0.1.3",
+  "publisher": "PersonaCouncel",
   "license": "MIT",
   "homepage": "https://github.com/slafleche/persona-counsel",
   "bugs": {
