@@ -106,6 +106,13 @@ jobs:
           APPLE_CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
         run: ./scripts/sign_macos_backend.sh
 
+      - name: Notarize macOS backend artifact (optional)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_NOTARY_KEYCHAIN_PROFILE: ${{ secrets.APPLE_NOTARY_KEYCHAIN_PROFILE }}
+        run: ./scripts/notarize_macos_backend.sh
+
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
@@ -143,6 +150,12 @@ jobs:
         env:
           APPLE_CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
         run: ./scripts/sign_macos_backend.sh
+
+      - name: Notarize macOS backend artifact (optional)
+        shell: bash
+        env:
+          APPLE_NOTARY_KEYCHAIN_PROFILE: ${{ secrets.APPLE_NOTARY_KEYCHAIN_PROFILE }}
+        run: ./scripts/notarize_macos_backend.sh
 
       - name: Matrix preflight (CI target set)
         run: REQUIRED_TARGETS="darwin-arm64" ./scripts/check_vscode_backend_matrix.sh
