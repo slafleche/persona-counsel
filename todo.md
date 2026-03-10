@@ -1,32 +1,36 @@
-- [x] Build supported target backends in CI (`darwin-arm64`, `linux-x64`, `win32-x64`).
-- [x] Add multi-platform packaging strategy (single universal `.vsix` with all binaries or per-platform `.vsix` outputs).
-- [x] Test extension on clean machines with no Python/counsel preinstalled.
-- [x] Add Windows clean-machine VSIX smoke test for bundled `counsel.exe`.
-- [x] Expand smoke tests to cover `--help/--version` and path compatibility (spaces + Unicode).
-- [x] Add first-run bootstrap UX in extension for missing/incompatible backend detection and guided remediation.
-- [x] Add explicit unsupported-platform handling when no bundled backend target matches host platform/arch.
-- [x] Harden backend launch policy with strict mode to disable PATH fallback for marketplace builds.
-- [x] Add extension E2E automation for `openTerminal`, `doctor`, `setup`, and failure paths.
-- [x] Add Linux clean-machine VSIX smoke test (even if not officially supported yet).
-- [x] Add SBOM/license report for bundled Python dependencies.
-- [x] Pin and verify build toolchain versions (PyInstaller, Python minor, Node major) in CI.
-- [x] Add artifact integrity check in CI (verify manifest/hash against packaged VSIX contents post-build).
-- [x] Add upgrade/migration check (install old VSIX -> update to new VSIX -> commands still work).
-- [x] Add `win32-x64` VSIX to the standard release packaging outputs (not smoke-only).
-- [x] Lock release metadata (final publisher/name/repository/license links and changelog flow).
-- [x] Add crash diagnostics bundle command (`Persona Counsel: Export Diagnostics`) for supportability.
-- [x] Add minimal in-extension user docs and troubleshooting commands (install, backend diagnostics, recovery).
+- [ ] Configure GitHub Actions secrets for macOS signing/notarization and verify CI uses them.
+- [ ] Add `APPLE_CODESIGN_IDENTITY` secret to repo/environment settings.
+- [ ] Add `APPLE_NOTARY_KEYCHAIN_PROFILE` secret to repo/environment settings.
+- [ ] Run CI on a branch and confirm macOS signing step runs (not skipped).
+- [ ] Run CI on a branch and confirm macOS notarization step runs (not skipped).
+- [ ] Capture one successful signed/notarized run URL in docs.
 
-- [x] Refactor release script to stop npm publishing and publish to Python package indexes + VS Code Marketplace while keeping generic release orchestration logic.
+- [ ] Add `post-release` verification script (Marketplace listing, package index version, extension ID consistency).
+- [ ] Create `scripts/post_release_verify.sh` with clear pass/fail exit codes.
+- [ ] Verify VS Code listing exists for `PersonaCouncel.persona-counsel-vscode`.
+- [ ] Verify VS Code version matches local extension version.
+- [ ] Verify TestPyPI/PyPI version matches local Python version based on release mode.
+- [ ] Add script usage docs to README release section.
 
-- [x] Define signing/notarization strategy for distributed backend binaries (especially macOS).
+- [ ] Write one-page release channels runbook (`alpha/prerelease` flow vs `stable` flow).
+- [ ] Add `docs/release_channels.md`.
+- [ ] Document prerelease path: version bump behavior, targets, required env vars, expected outputs.
+- [ ] Document stable path: required signing/notary env vars and hard-fail guardrails.
+- [ ] Document rollback behavior on release failure.
+- [ ] Link runbook from README and release checklist.
 
-Signing/notarization implementation checklist (next phase):
+- [ ] Lock Python runtime dependency baseline for reproducible releases.
+- [ ] Choose locking approach (`pip-tools` or equivalent) and document rationale.
+- [ ] Generate lock file(s) for runtime dependencies.
+- [ ] Update install/release scripts to consume lock file(s) where appropriate.
+- [ ] Add lock refresh workflow (manual command + cadence).
+- [ ] Validate lock flow in CI.
 
-- [x] Add macOS code-signing step in CI for bundled backend binary (`counsel`).
-- [x] Add macOS notarization + staple + verification step in CI.
-- [x] Add release-mode guardrails: stable mode requires signing/notarization success.
-- [x] Add secrets contract doc for Apple signing/notary credentials.
-- [x] Add user-facing note in release docs describing signed vs unsigned build expectations.
-
-- [x] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
+- [ ] Implement first real counsel execution loop (`list`, `summon`, `run`) with markdown trace output.
+- [ ] Define minimal v1 domain schema for persona and counsel configs.
+- [ ] Implement config loader + validation for `personas/` and `counsels/`.
+- [ ] Implement `counsel list` output for available counsels/personas.
+- [ ] Implement `counsel summon <name>` to resolve a counsel definition.
+- [ ] Implement `counsel run` happy-path orchestration loop.
+- [ ] Write markdown trace output to `sessions/` with deterministic structure.
+- [ ] Add CLI tests for `list`, `summon`, `run`, and trace file generation.
