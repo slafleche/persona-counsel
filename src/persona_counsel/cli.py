@@ -46,8 +46,7 @@ def doctor(json_output: bool = typer.Option(False, "--json")) -> None:
         return
 
     typer.echo(
-        "error: python >= 3.11 required "
-        f"(current: {checks['python_version']})",
+        f"error: python >= 3.11 required (current: {checks['python_version']})",
         err=True,
     )
     raise typer.Exit(code=1)

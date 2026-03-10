@@ -93,16 +93,21 @@ npm run release
 
 Notes:
 
-- Python upload target defaults to `pypi`; set `PYTHON_REPOSITORY=testpypi` for TestPyPI.
+- Python upload target is policy-locked by release mode:
+  - prerelease lock (`ALLOW_STABLE_RELEASE=false`): `testpypi`
+  - stable mode (`ALLOW_STABLE_RELEASE=true`): `pypi`
 - VS Code publish requires `VSCE_PAT` in environment.
 - Release script keeps Python + VS Code versions synchronized and bumps both together.
 - With `ALLOW_STABLE_RELEASE=false` (current default), only prerelease increments are allowed:
   - Python: `X.Y.ZaN` -> `X.Y.Za(N+1)`
   - VS Code: `X.Y.Z-alpha.N` -> `X.Y.Z-alpha.(N+1)`
+- In prerelease lock mode, VSIX packaging uses `--pre-release`, matching Marketplace publish mode.
 - `npm run release:dry` is non-interactive and shows the default prerelease bump plan.
 - To allow `patch`/`minor`/`major` base-version bumps, set `ALLOW_STABLE_RELEASE=true` in `scripts/release.mjs`.
 - On release failure after bump, local versions are rolled back to the previous synchronized pair.
 - On release failure, legacy `./.release-tools-venv` is also cleaned up if present.
+- `PACKAGE_TARGETS` now also drives `REQUIRED_TARGETS` by default in `npm run release`,
+  so local single-target releases work without requiring the full backend matrix.
 - You can skip either channel with:
   - `SKIP_PYTHON_PUBLISH=1`
   - `SKIP_VSCODE_PUBLISH=1`

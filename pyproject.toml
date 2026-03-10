@@ -27,11 +27,41 @@ counsel = "persona_counsel.cli:main"
 
 [project.optional-dependencies]
 build = ["pyinstaller>=6.0,<7"]
+dev = [
+  "pre-commit>=3.8",
+  "ruff>=0.8",
+]
 
 [tool.hatch.build]
 exclude = [
   "/.release-tools-venv",
   "/.release-tools-venv/**",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+]
+ignore = [
+  "E501",
+]
+
+
+
+
+
+
+
+
+
+
+
+
 
 

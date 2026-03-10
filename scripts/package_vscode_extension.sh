@@ -7,6 +7,7 @@ BACKEND_ARTIFACTS_DIR="$ROOT_DIR/build/vscode-backend-artifacts"
 BACKEND_DEST_DIR="$EXT_DIR/backend"
 STRICT_MATRIX="${STRICT_MATRIX:-0}"
 PACKAGE_TARGETS="${PACKAGE_TARGETS:-}"
+VSCE_PRE_RELEASE="${VSCE_PRE_RELEASE:-0}"
 
 if [[ ! -d "$BACKEND_ARTIFACTS_DIR" ]]; then
   cat <<MSG
@@ -80,10 +81,14 @@ for target in "${SELECTED_TARGETS[@]}"; do
   fi
 
   VSIX_NAME="persona-counsel-vscode-${target}.vsix"
+  VSCE_ARGS=(package --no-dependencies --out "$VSIX_NAME")
+  if [[ "$VSCE_PRE_RELEASE" == "1" ]]; then
+    VSCE_ARGS+=(--pre-release)
+  fi
   if command -v vsce >/dev/null 2>&1; then
-    vsce package --no-dependencies --out "$VSIX_NAME"
+    vsce "${VSCE_ARGS[@]}"
   else
-    npx --yes @vscode/vsce package --no-dependencies --out "$VSIX_NAME"
+    npx --yes @vscode/vsce "${VSCE_ARGS[@]}"
   fi
   VSIX_OUTPUTS+=("$EXT_DIR/$VSIX_NAME")
 done
@@ -99,6 +104,8 @@ $(for f in "${VSIX_OUTPUTS[@]}"; do echo "  $f"; done)
 
 Strict matrix mode:
   STRICT_MATRIX=$STRICT_MATRIX
+Pre-release packaging mode:
+  VSCE_PRE_RELEASE=$VSCE_PRE_RELEASE
 Package targets:
   ${SELECTED_TARGETS[*]}
 MSG

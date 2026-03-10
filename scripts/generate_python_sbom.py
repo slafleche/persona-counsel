@@ -14,7 +14,6 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-
 REQ_NAME_RE = re.compile(r"^\s*([A-Za-z0-9_.-]+)")
 
 
@@ -48,11 +47,7 @@ def parse_requirement_name(requirement: str) -> str | None:
 def extract_license(md: metadata.PackageMetadata) -> tuple[str, list[str]]:
     license_field = (md.get("License") or "").strip()
     classifiers = md.get_all("Classifier") or []
-    license_classifiers = [
-        item.strip()
-        for item in classifiers
-        if item.startswith("License :: ")
-    ]
+    license_classifiers = [item.strip() for item in classifiers if item.startswith("License :: ")]
     return (license_field or "UNKNOWN", license_classifiers)
 
 

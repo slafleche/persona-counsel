@@ -7,7 +7,6 @@ import json
 import tomllib
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
 
 EXPECTED_REPO = "https://github.com/slafleche/persona-counsel"
@@ -27,24 +26,40 @@ def verify_pyproject() -> None:
     project = data.get("project", {})
     urls = project.get("urls", {})
 
-    require(project.get("name") == "persona-counsel", "pyproject: project.name must be persona-counsel")
+    require(
+        project.get("name") == "persona-counsel", "pyproject: project.name must be persona-counsel"
+    )
     require(project.get("readme") == "README.md", "pyproject: project.readme must be README.md")
-    require(project.get("license", {}).get("file") == "LICENSE", "pyproject: project.license.file must be LICENSE")
+    require(
+        project.get("license", {}).get("file") == "LICENSE",
+        "pyproject: project.license.file must be LICENSE",
+    )
     require(urls.get("Homepage") == EXPECTED_REPO, "pyproject: project.urls.Homepage mismatch")
     require(urls.get("Repository") == EXPECTED_REPO, "pyproject: project.urls.Repository mismatch")
     require(urls.get("Issues") == EXPECTED_ISSUES, "pyproject: project.urls.Issues mismatch")
-    require(urls.get("Changelog") == EXPECTED_CHANGELOG, "pyproject: project.urls.Changelog mismatch")
+    require(
+        urls.get("Changelog") == EXPECTED_CHANGELOG, "pyproject: project.urls.Changelog mismatch"
+    )
 
 
 def verify_extension_package() -> None:
     package_json = ROOT / "extension" / "package.json"
     data = json.loads(package_json.read_text(encoding="utf-8"))
 
-    require(data.get("publisher") == "persona-counsel", "extension/package.json: publisher must be persona-counsel")
+    require(
+        data.get("publisher") == "persona-counsel",
+        "extension/package.json: publisher must be persona-counsel",
+    )
     require(data.get("license") == "MIT", "extension/package.json: license must be MIT")
     require(data.get("homepage") == EXPECTED_REPO, "extension/package.json: homepage mismatch")
-    require(data.get("repository", {}).get("url") == EXPECTED_REPO_GIT, "extension/package.json: repository.url mismatch")
-    require(data.get("bugs", {}).get("url") == EXPECTED_ISSUES, "extension/package.json: bugs.url mismatch")
+    require(
+        data.get("repository", {}).get("url") == EXPECTED_REPO_GIT,
+        "extension/package.json: repository.url mismatch",
+    )
+    require(
+        data.get("bugs", {}).get("url") == EXPECTED_ISSUES,
+        "extension/package.json: bugs.url mismatch",
+    )
 
 
 def verify_changelog() -> None:

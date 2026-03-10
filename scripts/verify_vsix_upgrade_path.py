@@ -9,7 +9,6 @@ import re
 import zipfile
 from dataclasses import dataclass
 
-
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$")
 
 

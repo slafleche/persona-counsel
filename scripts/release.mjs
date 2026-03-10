@@ -4,12 +4,14 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import readline from 'node:readline';
 
-const PYTHON_REPOSITORY = process.env.PYTHON_REPOSITORY || 'pypi';
 const SKIP_PYTHON_PUBLISH = process.env.SKIP_PYTHON_PUBLISH === '1';
 const SKIP_VSCODE_PUBLISH = process.env.SKIP_VSCODE_PUBLISH === '1';
 const BUILD_LOCAL_BACKEND = process.env.BUILD_LOCAL_BACKEND === '1';
 const RELEASE_ENV = 'PERSONA_COUNSEL_RELEASE';
 const ALLOW_STABLE_RELEASE = false;
+const EXPECTED_PYTHON_REPOSITORY = ALLOW_STABLE_RELEASE ? 'pypi' : 'testpypi';
+const PYTHON_REPOSITORY = process.env.PYTHON_REPOSITORY || EXPECTED_PYTHON_REPOSITORY;
+const VSCE_PUBLISH_PRE_RELEASE = !ALLOW_STABLE_RELEASE;
 const USE_COLOR = process.stdout.isTTY && process.env.NO_COLOR !== '1';
 const PYPROJECT_PATH = path.join(process.cwd(), 'pyproject.toml');
 const EXTENSION_DIR = path.join(process.cwd(), 'extension');
@@ -162,6 +164,18 @@ const parseVsCodePrereleaseVersion = (version) => {
   };
 };
 
+const parseVsCodeStableVersion = (version) => {
+  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+  };
+};
+
 const makePythonPrereleaseVersion = ({ major, minor, patch, label, prerelease }) => {
   const marker = label === 'alpha' ? 'a' : label === 'beta' ? 'b' : 'rc';
   return `${major}.${minor}.${patch}${marker}${prerelease}`;
@@ -170,32 +184,53 @@ const makePythonPrereleaseVersion = ({ major, minor, patch, label, prerelease })
 const makeVsCodePrereleaseVersion = ({ major, minor, patch, label, prerelease }) =>
   `${major}.${minor}.${patch}-${label}.${prerelease}`;
 
+const makeVsCodeMarketplacePrereleaseVersion = ({ major, minor, prerelease }) =>
+  `${major}.${minor}.${prerelease}`;
+
 const ensureSynchronizedCurrentVersions = (pythonVersion, vscodeVersion) => {
   const py = parsePythonPrereleaseVersion(pythonVersion);
-  const vs = parseVsCodePrereleaseVersion(vscodeVersion);
+  const vsPrerelease = parseVsCodePrereleaseVersion(vscodeVersion);
+  const vsStable = parseVsCodeStableVersion(vscodeVersion);
 
-  if (!py || !vs) {
+  if (!py || (!vsPrerelease && !vsStable)) {
     throw new StepError(
       `Unsupported prerelease format for synchronized release:\n` +
       `- pyproject.toml version: ${pythonVersion}\n` +
       `- extension/package.json version: ${vscodeVersion}\n` +
-      'Expected formats: X.Y.ZaN / X.Y.ZbN / X.Y.ZrcN and X.Y.Z-alpha.N / X.Y.Z-beta.N / X.Y.Z-rc.N',
+      'Expected formats: X.Y.ZaN / X.Y.ZbN / X.Y.ZrcN and one of:\n' +
+      '- X.Y.Z-alpha.N / X.Y.Z-beta.N / X.Y.Z-rc.N (legacy)\n' +
+      '- X.Y.N (Marketplace prerelease-compatible)',
     );
   }
 
-  if (
-    py.major !== vs.major ||
-    py.minor !== vs.minor ||
-    py.patch !== vs.patch ||
-    py.label !== vs.label ||
-    py.prerelease !== vs.prerelease
-  ) {
-    throw new StepError(
-      `Version mismatch between Python and extension:\n` +
-      `- python: ${pythonVersion}\n` +
-      `- vscode: ${vscodeVersion}\n` +
-      'These must represent the same prerelease build.',
-    );
+  if (vsPrerelease) {
+    if (
+      py.major !== vsPrerelease.major ||
+      py.minor !== vsPrerelease.minor ||
+      py.patch !== vsPrerelease.patch ||
+      py.label !== vsPrerelease.label ||
+      py.prerelease !== vsPrerelease.prerelease
+    ) {
+      throw new StepError(
+        `Version mismatch between Python and extension:\n` +
+        `- python: ${pythonVersion}\n` +
+        `- vscode: ${vscodeVersion}\n` +
+        'These must represent the same prerelease build.',
+      );
+    }
+  } else if (vsStable) {
+    if (
+      py.major !== vsStable.major ||
+      py.minor !== vsStable.minor ||
+      py.prerelease !== vsStable.patch
+    ) {
+      throw new StepError(
+        `Version mismatch between Python and extension:\n` +
+        `- python: ${pythonVersion}\n` +
+        `- vscode: ${vscodeVersion}\n` +
+        'Expected extension patch number to match Python prerelease number (X.Y.N).',
+      );
+    }
   }
 
   return py;
@@ -256,10 +291,10 @@ const enforcePrereleaseOnly = (pythonVersion, vscodeVersion) => {
       'Use a prerelease version (for example 0.1.0a1) or set ALLOW_STABLE_RELEASE=true in scripts/release.mjs.',
     );
   }
-  if (!isVsCodePrereleaseVersion(vscodeVersion)) {
+  if (!parseVsCodePrereleaseVersion(vscodeVersion) && !parseVsCodeStableVersion(vscodeVersion)) {
     throw new StepError(
       `Stable VS Code extension version blocked by prerelease lock: ${vscodeVersion}. ` +
-      'Use a prerelease semver (for example 0.1.0-alpha.1) or set ALLOW_STABLE_RELEASE=true in scripts/release.mjs.',
+      'Use a prerelease-compatible version (legacy X.Y.Z-alpha.N or Marketplace-compatible X.Y.N), or set ALLOW_STABLE_RELEASE=true in scripts/release.mjs.',
     );
   }
 };
@@ -300,7 +335,7 @@ const collectPythonDistFiles = (version) => {
 
 const publishVsixToMarketplace = (vsixPath) => {
   const publishArgs = ['--yes', '@vscode/vsce', 'publish', '--packagePath', vsixPath];
-  if (!ALLOW_STABLE_RELEASE) {
+  if (VSCE_PUBLISH_PRE_RELEASE) {
     publishArgs.push('--pre-release');
   }
   runStep(
@@ -341,6 +376,9 @@ const printReleasePlan = ({
   console.log(`- python package: persona-counsel@${fmtNextVersion(nextPythonVersion)} -> ${pythonRepository}`);
   console.log(`- vscode extension: persona-counsel-vscode@${fmtNextVersion(nextExtensionVersion)} -> VS Code Marketplace`);
   console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
+  console.log(
+    `- vscode marketplace channel: ${VSCE_PUBLISH_PRE_RELEASE ? 'pre-release (--pre-release)' : 'stable'}`,
+  );
   if (BUILD_LOCAL_BACKEND) {
     console.log(`- backend packaging: include local target build (${fmtHint('BUILD_LOCAL_BACKEND=1')})`);
   }
@@ -361,6 +399,13 @@ const main = async () => {
   let rollbackState = null;
 
   try {
+    if (PYTHON_REPOSITORY !== EXPECTED_PYTHON_REPOSITORY) {
+      throw new StepError(
+        `Python repository policy mismatch: ALLOW_STABLE_RELEASE=${ALLOW_STABLE_RELEASE} requires ` +
+        `${EXPECTED_PYTHON_REPOSITORY}, but got ${PYTHON_REPOSITORY}.`,
+      );
+    }
+
     const currentPythonVersion = readPythonVersion();
     const currentExtensionVersion = readJsonVersion(EXTENSION_PACKAGE_PATH);
     const currentParsed = ensureSynchronizedCurrentVersions(
@@ -375,8 +420,11 @@ const main = async () => {
       ? bumpPrereleaseOnly(currentParsed)
       : bumpBaseVersion(currentParsed, bumpType);
     const nextPythonVersion = makePythonPrereleaseVersion(nextParsed);
-    const nextExtensionVersion = makeVsCodePrereleaseVersion(nextParsed);
+    const nextExtensionVersion = ALLOW_STABLE_RELEASE
+      ? makeVsCodePrereleaseVersion(nextParsed)
+      : makeVsCodeMarketplacePrereleaseVersion(nextParsed);
     const vsixTargets = readVsixTargets();
+    const requiredTargets = (process.env.REQUIRED_TARGETS?.trim() || vsixTargets.join(' '));
     const vsixFiles = vsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
 
     printReleasePlan({
@@ -446,7 +494,15 @@ const main = async () => {
         `Package VS Code extension (${vsixTargets.join(', ')})`,
         releaseVsixArgs[0],
         releaseVsixArgs.slice(1),
-        { env: { ...process.env, PACKAGE_TARGETS: vsixTargets.join(' '), [RELEASE_ENV]: '1' } },
+        {
+          env: {
+            ...process.env,
+            PACKAGE_TARGETS: vsixTargets.join(' '),
+            REQUIRED_TARGETS: requiredTargets,
+            VSCE_PRE_RELEASE: VSCE_PUBLISH_PRE_RELEASE ? '1' : '0',
+            [RELEASE_ENV]: '1',
+          },
+        },
       );
 
       vsixFiles.forEach((vsixFile) => publishVsixToMarketplace(vsixFile));
