@@ -28,3 +28,5 @@ This file defines repo-level collaboration rules for planning and implementation
 - Must: When giving user-facing instructions, provide only one step at a time.
 - Must: Wait for user confirmation or follow-up before giving the next step,
   since issues/questions are expected between steps.
+- Must: Before editing any file, reload/re-read it from disk to ensure changes
+  are based on the latest version.

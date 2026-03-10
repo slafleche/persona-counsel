@@ -28,6 +28,7 @@ vite.svg
 __pycache__/
 *.pyc
 .venv/
+.release-tools-venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

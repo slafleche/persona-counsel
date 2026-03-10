@@ -546,7 +546,7 @@ const main = async () => {
       vsixFiles.forEach((vsixFile) => publishVsixToMarketplace(vsixFile));
     }
 
-    if (RUN_POST_RELEASE_VERIFY && !SKIP_PYTHON_PUBLISH && !SKIP_VSCODE_PUBLISH) {
+    if (RUN_POST_RELEASE_VERIFY && !SKIP_VSCODE_PUBLISH) {
       runStep(
         'Post-release verification',
         './scripts/post_release_verify.sh',
@@ -555,13 +555,14 @@ const main = async () => {
           env: {
             ...process.env,
             PYTHON_REPOSITORY,
+            VERIFY_PYTHON: SKIP_PYTHON_PUBLISH ? '0' : '1',
             EXTENSION_ID: extensionId,
             [RELEASE_ENV]: '1',
           },
         },
       );
     } else if (RUN_POST_RELEASE_VERIFY) {
-      console.log('\n> Post-release verification skipped (requires both Python and VS Code publish steps enabled)');
+      console.log('\n> Post-release verification skipped (VS Code publish step disabled)');
     }
 
     console.log('\n✓ Release publish flow completed.');

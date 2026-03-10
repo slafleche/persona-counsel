@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "persona-counsel"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "Persona Counsel CLI"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -51,6 +51,9 @@ select = [
 ignore = [
   "E501",
 ]
+
+
+
 
 
 

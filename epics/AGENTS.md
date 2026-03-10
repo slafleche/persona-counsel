@@ -48,3 +48,5 @@ These files are the main input/output for planning and implementation alignment.
   behavior before implementation begins.
 - Must: Avoid silently broadening epic scope; split new scope into a separate
   epic when needed.
+- Must: Before editing any file, reload/re-read it from disk to ensure changes
+  are based on the latest version.

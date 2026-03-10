@@ -126,9 +126,12 @@ Optional overrides:
 - `EXTENSION_ID` (default: `PersonaCouncel.persona-counsel-vscode`)
 - `PYTHON_REPOSITORY` (default: `testpypi`, set to `pypi` for stable-mode checks)
 
-`npm run release` now runs post-release verification automatically after a
-successful publish when both channels are enabled. To disable automatic
-verification for a run, set `RUN_POST_RELEASE_VERIFY=0`.
+`npm run release` now runs post-release verification automatically whenever the
+VS Code publish step runs:
+- both channels enabled: verifies VS Code + Python
+- VS Code-only release: verifies VS Code and skips Python check
+- Python-only release: verification is skipped
+To disable automatic verification for a run, set `RUN_POST_RELEASE_VERIFY=0`.
 
 Custom CI target set example:
 
