@@ -1,4 +1,13 @@
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +31,8 @@ const PYPROJECT_PATH = path.join(process.cwd(), 'pyproject.toml');
 const EXTENSION_DIR = path.join(process.cwd(), 'extension');
 const EXTENSION_PACKAGE_PATH = path.join(EXTENSION_DIR, 'package.json');
 const RELEASE_STATE_PATH = path.join(process.cwd(), '.release-state.local.json');
+const RELEASE_LEDGER_DIR = path.join(process.cwd(), 'releases');
+const RELEASE_LEDGER_PATH = path.join(RELEASE_LEDGER_DIR, 'history.jsonl');
 const RELEASE_TOOLS_VENV = path.join(os.tmpdir(), 'persona-counsel-release-tools-venv');
 const LEGACY_RELEASE_TOOLS_VENV = '.release-tools-venv';
 
@@ -67,6 +78,62 @@ const runStep = (label, command, args, options = {}) => {
   if (result.status !== 0) {
     throw new StepError(`${label} failed`, result.status ?? 1);
   }
+};
+
+const runGit = (args) => spawnSync('git', args, {
+  encoding: 'utf8',
+  shell: process.platform === 'win32',
+});
+
+const ensureCleanRepoOrThrow = () => {
+  const status = runGit(['status', '--porcelain']);
+  if (status.status !== 0) {
+    const message = status.stderr?.trim() || 'Unable to read git status.';
+    throw new StepError(`Could not verify clean git working tree: ${message}`);
+  }
+  const output = (status.stdout || '').trim();
+  if (output.length > 0) {
+    throw new StepError(
+      'Release requires a clean repository (no staged, unstaged, or untracked files).',
+    );
+  }
+};
+
+const getCurrentHeadSha = () => {
+  const result = runGit(['rev-parse', 'HEAD']);
+  if (result.status !== 0) {
+    const message = result.stderr?.trim() || 'Unable to resolve HEAD.';
+    throw new StepError(`Could not resolve current git HEAD: ${message}`);
+  }
+  return (result.stdout || '').trim();
+};
+
+const ensureReleaseTag = (canonicalVersion, expectedHeadSha) => {
+  const tagName = `release/${canonicalVersion}`;
+  const ref = `refs/tags/${tagName}`;
+  const exists = runGit(['show-ref', '--verify', '--quiet', ref]).status === 0;
+
+  if (!exists) {
+    const create = runGit(['tag', tagName]);
+    if (create.status !== 0) {
+      const message = create.stderr?.trim() || `Could not create tag ${tagName}.`;
+      throw new StepError(message);
+    }
+    return { tagName, created: true };
+  }
+
+  const tagShaResult = runGit(['rev-list', '-n', '1', tagName]);
+  if (tagShaResult.status !== 0) {
+    const message = tagShaResult.stderr?.trim() || `Could not resolve existing tag ${tagName}.`;
+    throw new StepError(message);
+  }
+  const tagSha = (tagShaResult.stdout || '').trim();
+  if (tagSha !== expectedHeadSha) {
+    throw new StepError(
+      `Release tag ${tagName} already exists on ${tagSha}, not current HEAD ${expectedHeadSha}.`,
+    );
+  }
+  return { tagName, created: false };
 };
 
 const prompt = (question, defaultValue = '') =>
@@ -259,6 +326,7 @@ const writeReleaseState = (state) => {
 const isActiveReleaseState = (state) => state?.status === 'in_progress' || state?.status === 'failed';
 
 const targetChannelKey = (target) => `vscode_${String(target).replace(/[^a-zA-Z0-9]+/g, '_')}`;
+const getChannelStatus = (state, key) => state?.channels?.[key] || 'pending';
 
 const buildReleaseState = ({
   canonicalVersion,
@@ -448,6 +516,40 @@ const collectPythonDistFiles = (version) => {
   return files;
 };
 
+const releaseModeLabel = () => {
+  if (!SKIP_PYTHON_PUBLISH && !SKIP_VSCODE_PUBLISH) {
+    return 'full';
+  }
+  if (!SKIP_PYTHON_PUBLISH && SKIP_VSCODE_PUBLISH) {
+    return 'python-only';
+  }
+  if (SKIP_PYTHON_PUBLISH && !SKIP_VSCODE_PUBLISH) {
+    return 'vscode-only';
+  }
+  return 'dry-channels';
+};
+
+const appendReleaseLedger = ({
+  canonicalVersion,
+  pythonVersion,
+  vscodeVersion,
+  channels,
+  vsixTargets,
+}) => {
+  mkdirSync(RELEASE_LEDGER_DIR, { recursive: true });
+  const entry = {
+    canonicalVersion,
+    pythonVersion,
+    vscodeVersion,
+    mode: releaseModeLabel(),
+    vsixTargets,
+    channels,
+    commit: getCurrentHeadSha(),
+    timestamp: new Date().toISOString(),
+  };
+  appendFileSync(RELEASE_LEDGER_PATH, `${JSON.stringify(entry)}\n`, 'utf8');
+};
+
 const publishVsixToMarketplace = (vsixPath) => {
   const publishArgs = ['--yes', '@vscode/vsce', 'publish', '--packagePath', vsixPath];
   if (VSCE_PUBLISH_PRE_RELEASE) {
@@ -482,6 +584,8 @@ const printReleasePlan = ({
   nextExtensionVersion,
   pythonRepository,
   vsixTargets,
+  pendingVsixTargets,
+  pendingPython,
   isDryRun,
   isResuming,
 }) => {
@@ -497,6 +601,10 @@ const printReleasePlan = ({
   console.log(`- python package: persona-counsel@${fmtNextVersion(nextPythonVersion)} -> ${pythonRepository}`);
   console.log(`- vscode extension: persona-counsel-vscode@${fmtNextVersion(nextExtensionVersion)} -> VS Code Marketplace`);
   console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
+  if (isResuming) {
+    console.log(`- pending python publish: ${pendingPython ? 'yes' : 'no (already successful)'}`);
+    console.log(`- pending vscode targets: ${pendingVsixTargets.length > 0 ? pendingVsixTargets.join(', ') : 'none (all already successful)'}`);
+  }
   console.log(
     `- vscode marketplace channel: ${VSCE_PUBLISH_PRE_RELEASE ? 'pre-release (--pre-release)' : 'stable'}`,
   );
@@ -533,6 +641,10 @@ const main = async () => {
         `Python repository policy mismatch: ALLOW_STABLE_RELEASE=${ALLOW_STABLE_RELEASE} requires ` +
         `${EXPECTED_PYTHON_REPOSITORY}, but got ${PYTHON_REPOSITORY}.`,
       );
+    }
+
+    if (!isDryRun) {
+      ensureCleanRepoOrThrow();
     }
 
     const currentPythonVersion = readPythonVersion();
@@ -572,8 +684,6 @@ const main = async () => {
     }
 
     const vsixTargets = readVsixTargets();
-    const requiredTargets = (process.env.REQUIRED_TARGETS?.trim() || vsixTargets.join(' '));
-    const vsixFiles = vsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
     releaseState = resumingRelease
       ? {
         ...existingReleaseState,
@@ -588,6 +698,14 @@ const main = async () => {
         vscodeVersion: nextExtensionVersion,
         vsixTargets,
       });
+    const pendingPython = !SKIP_PYTHON_PUBLISH && getChannelStatus(releaseState, 'python') !== 'success';
+    const pendingVsixTargets = SKIP_VSCODE_PUBLISH
+      ? []
+      : vsixTargets.filter((target) => getChannelStatus(releaseState, targetChannelKey(target)) !== 'success');
+    const requiredTargets = pendingVsixTargets.length > 0
+      ? (process.env.REQUIRED_TARGETS?.trim() || pendingVsixTargets.join(' '))
+      : '';
+    const vsixFiles = pendingVsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
 
     printReleasePlan({
       bumpType,
@@ -598,6 +716,8 @@ const main = async () => {
       nextExtensionVersion,
       pythonRepository: PYTHON_REPOSITORY,
       vsixTargets,
+      pendingVsixTargets,
+      pendingPython,
       isDryRun,
       isResuming: resumingRelease,
     });
@@ -633,7 +753,7 @@ const main = async () => {
       );
     }
 
-    if (!SKIP_PYTHON_PUBLISH) {
+    if (pendingPython) {
       releasePython = ensurePythonReleaseTooling();
       runStep('Build Python distribution', releasePython, ['-m', 'build']);
       const distFiles = collectPythonDistFiles(nextPythonVersion);
@@ -645,9 +765,11 @@ const main = async () => {
         { env: { ...process.env, [RELEASE_ENV]: '1' } },
       );
       markChannel(releaseState, 'python', 'success');
+    } else if (!SKIP_PYTHON_PUBLISH) {
+      console.log('\n> Skipping Python publish (already successful in current release state)');
     }
 
-    if (!SKIP_VSCODE_PUBLISH) {
+    if (!SKIP_VSCODE_PUBLISH && pendingVsixTargets.length > 0) {
       if (!process.env.VSCE_PAT) {
         throw new StepError('Missing VSCE_PAT. Set VSCE_PAT with a VS Code Marketplace PAT before publishing.');
       }
@@ -663,7 +785,7 @@ const main = async () => {
         {
           env: {
             ...process.env,
-            PACKAGE_TARGETS: vsixTargets.join(' '),
+            PACKAGE_TARGETS: pendingVsixTargets.join(' '),
             REQUIRED_TARGETS: requiredTargets,
             VSCE_PRE_RELEASE: VSCE_PUBLISH_PRE_RELEASE ? '1' : '0',
             [RELEASE_ENV]: '1',
@@ -673,8 +795,10 @@ const main = async () => {
 
       vsixFiles.forEach((vsixFile, idx) => {
         publishVsixToMarketplace(vsixFile);
-        markChannel(releaseState, targetChannelKey(vsixTargets[idx]), 'success');
+        markChannel(releaseState, targetChannelKey(pendingVsixTargets[idx]), 'success');
       });
+    } else if (!SKIP_VSCODE_PUBLISH) {
+      console.log('\n> Skipping VS Code publish (all selected targets already successful in current release state)');
     }
 
     if (RUN_POST_RELEASE_VERIFY && !SKIP_VSCODE_PUBLISH) {
@@ -686,7 +810,9 @@ const main = async () => {
           env: {
             ...process.env,
             PYTHON_REPOSITORY,
-            VERIFY_PYTHON: SKIP_PYTHON_PUBLISH ? '0' : '1',
+            VERIFY_PYTHON: SKIP_PYTHON_PUBLISH
+              ? '0'
+              : (getChannelStatus(releaseState, 'python') === 'success' ? '1' : '0'),
             EXTENSION_ID: extensionId,
             [RELEASE_ENV]: '1',
           },
@@ -696,10 +822,48 @@ const main = async () => {
       console.log('\n> Post-release verification skipped (VS Code publish step disabled)');
     }
 
+    const requiredChannelKeys = [];
+    if (!SKIP_PYTHON_PUBLISH) {
+      requiredChannelKeys.push('python');
+    }
+    if (!SKIP_VSCODE_PUBLISH) {
+      requiredChannelKeys.push(...vsixTargets.map((target) => targetChannelKey(target)));
+    }
+
+    const allRequiredSuccessful = requiredChannelKeys.every(
+      (key) => getChannelStatus(releaseState, key) === 'success',
+    );
+    if (!allRequiredSuccessful) {
+      releaseState.status = 'in_progress';
+      releaseState.lastError = '';
+      releaseState.updatedAt = new Date().toISOString();
+      writeReleaseState(releaseState);
+      throw new StepError(
+        'Release is not finalized: one or more required channels are still pending.',
+      );
+    }
+
+    const headSha = getCurrentHeadSha();
+    const { tagName, created } = ensureReleaseTag(canonicalVersion, headSha);
+    appendReleaseLedger({
+      canonicalVersion,
+      pythonVersion: nextPythonVersion,
+      vscodeVersion: nextExtensionVersion,
+      channels: releaseState.channels || {},
+      vsixTargets,
+    });
+
     releaseState.status = 'complete';
     releaseState.lastError = '';
     releaseState.updatedAt = new Date().toISOString();
     writeReleaseState(releaseState);
+    if (existsSync(RELEASE_STATE_PATH)) {
+      unlinkSync(RELEASE_STATE_PATH);
+    }
+
+    console.log(`\n> Release tag: ${tagName}${created ? ' (created)' : ' (already on HEAD)'}`);
+    console.log(`> Push tag: git push origin ${tagName}`);
+    console.log(`> Ledger: ${path.relative(process.cwd(), RELEASE_LEDGER_PATH)}`);
 
     console.log('\n✓ Release publish flow completed.');
   } catch (error) {

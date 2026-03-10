@@ -1,27 +1,27 @@
 # Epic 01: Portability Plan
 
-- [ ] Add canonical version parsing/formatting support to release flow.
-  - [ ] Define canonical prerelease parser (`X.Y.Z-alpha.N`).
-  - [ ] Define Python derivation (`X.Y.ZaN`).
-  - [ ] Define VS Code derivation (`X.Y.N`).
-  - [ ] Validate round-trip consistency in dry-run output.
+- [x] Add canonical version parsing/formatting support to release flow.
+  - [x] Define canonical prerelease parser (`X.Y.Z-alpha.N`).
+  - [x] Define Python derivation (`X.Y.ZaN`).
+  - [x] Define VS Code derivation (`X.Y.N`).
+  - [x] Validate round-trip consistency in dry-run output.
 
-- [ ] Add local release state file lifecycle.
-  - [ ] Create `.release-state.local.json` read/write helpers.
-  - [ ] Add state initialization for first attempt.
-  - [ ] Reuse reserved version when state is `in_progress` or `failed`.
-  - [ ] Persist per-channel result statuses and last error.
+- [x] Add local release state file lifecycle.
+  - [x] Create `.release-state.local.json` read/write helpers.
+  - [x] Add state initialization for first attempt.
+  - [x] Reuse reserved version when state is `in_progress` or `failed`.
+  - [x] Persist per-channel result statuses and last error.
 
-- [ ] Integrate retry-safe execution semantics into `npm run release`.
-  - [ ] Prevent bumping to a new version while prior reserved version is
+- [x] Integrate retry-safe execution semantics into `npm run release`.
+  - [x] Prevent bumping to a new version while prior reserved version is
     unresolved.
-  - [ ] Ensure rollback keeps reserved state intact after failure.
-  - [ ] Ensure skip flags still work and are reflected in state.
+  - [x] Ensure rollback keeps reserved state intact after failure.
+  - [x] Ensure skip flags still work and are reflected in state.
 
-- [ ] Make VSIX packaging explicitly target-specific.
-  - [ ] Pass `--target <target>` to `vsce package`.
-  - [ ] Keep one VSIX output per target.
-  - [ ] Verify target metadata in packaged VSIX output.
+- [x] Make VSIX packaging explicitly target-specific.
+  - [x] Pass `--target <target>` to `vsce package`.
+  - [x] Keep one VSIX output per target.
+  - [x] Verify target metadata in packaged VSIX output.
 
 - [ ] Enforce required portability target set for this epic.
   - [ ] Use required targets: `darwin-arm64 linux-x64 win32-x64`.
