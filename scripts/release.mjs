@@ -12,6 +12,10 @@ const ALLOW_STABLE_RELEASE = false;
 const EXPECTED_PYTHON_REPOSITORY = ALLOW_STABLE_RELEASE ? 'pypi' : 'testpypi';
 const PYTHON_REPOSITORY = process.env.PYTHON_REPOSITORY || EXPECTED_PYTHON_REPOSITORY;
 const VSCE_PUBLISH_PRE_RELEASE = !ALLOW_STABLE_RELEASE;
+const STABLE_SIGNING_REQUIRED_ENV = [
+  'APPLE_CODESIGN_IDENTITY',
+  'APPLE_NOTARY_KEYCHAIN_PROFILE',
+];
 const USE_COLOR = process.stdout.isTTY && process.env.NO_COLOR !== '1';
 const PYPROJECT_PATH = path.join(process.cwd(), 'pyproject.toml');
 const EXTENSION_DIR = path.join(process.cwd(), 'extension');
@@ -299,6 +303,19 @@ const enforcePrereleaseOnly = (pythonVersion, vscodeVersion) => {
   }
 };
 
+const enforceStableSigningGuardrails = () => {
+  if (!ALLOW_STABLE_RELEASE) {
+    return;
+  }
+
+  const missing = STABLE_SIGNING_REQUIRED_ENV.filter((key) => !process.env[key]?.trim());
+  if (missing.length > 0) {
+    throw new StepError(
+      `Stable release requires signing/notarization env vars: ${missing.join(', ')}.`,
+    );
+  }
+};
+
 const readVsixTargets = () => {
   const packageTargetsRaw = process.env.PACKAGE_TARGETS?.trim();
   if (!packageTargetsRaw) {
@@ -390,6 +407,10 @@ const printReleasePlan = ({
   }
   if (!ALLOW_STABLE_RELEASE) {
     console.log(`- stable release lock: ${fmtHint('ON')} (flip ALLOW_STABLE_RELEASE=true to disable)`);
+  } else {
+    console.log(
+      `- stable release guardrails: signing/notarization required (${STABLE_SIGNING_REQUIRED_ENV.join(', ')})`,
+    );
   }
 };
 
@@ -414,6 +435,7 @@ const main = async () => {
     );
 
     enforcePrereleaseOnly(currentPythonVersion, currentExtensionVersion);
+    enforceStableSigningGuardrails();
 
     const bumpType = isDryRun ? defaultBumpType() : await chooseBumpType();
     const nextParsed = bumpType === 'prerelease'
