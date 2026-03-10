@@ -206,7 +206,8 @@ const writePythonVersion = (nextVersion) => {
     throw new StepError('Unable to update [project].version in pyproject.toml.');
   }
 
-  writeFileSync(PYPROJECT_PATH, `${nextLines.join('\n')}\n`, 'utf8');
+  const normalized = `${nextLines.join('\n')}\n`.replace(/\n+$/g, '\n');
+  writeFileSync(PYPROJECT_PATH, normalized, 'utf8');
 };
 
 const setExtensionVersion = (nextVersion) => {
@@ -312,6 +313,16 @@ const readReleaseState = () => {
       );
     }
 
+    if (
+      parsed.vsixTargets !== undefined
+      && (
+        !Array.isArray(parsed.vsixTargets)
+        || parsed.vsixTargets.some((value) => typeof value !== 'string')
+      )
+    ) {
+      throw new StepError(`Invalid vsixTargets in ${RELEASE_STATE_PATH}.`);
+    }
+
     return parsed;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -327,6 +338,11 @@ const isActiveReleaseState = (state) => state?.status === 'in_progress' || state
 
 const targetChannelKey = (target) => `vscode_${String(target).replace(/[^a-zA-Z0-9]+/g, '_')}`;
 const getChannelStatus = (state, key) => state?.channels?.[key] || 'pending';
+const deriveVsixTargetsFromState = (state) => (
+  Object.keys(state?.channels || {})
+    .filter((key) => key.startsWith('vscode_'))
+    .map((key) => key.slice('vscode_'.length).replace(/_/g, '-'))
+);
 
 const buildReleaseState = ({
   canonicalVersion,
@@ -343,6 +359,7 @@ const buildReleaseState = ({
     canonicalVersion,
     pythonVersion,
     vscodeVersion,
+    vsixTargets,
     status: 'in_progress',
     channels,
     lastError: '',
@@ -516,6 +533,64 @@ const collectPythonDistFiles = (version) => {
   return files;
 };
 
+const backendBinaryFilenameForTarget = (target) => (
+  String(target).startsWith('win32-') ? 'counsel.exe' : 'counsel'
+);
+
+const hasLocalBackendArtifact = (target) => {
+  const filename = backendBinaryFilenameForTarget(target);
+  const artifactPath = path.join(
+    process.cwd(),
+    'build',
+    'vscode-backend-artifacts',
+    target,
+    filename,
+  );
+  return existsSync(artifactPath);
+};
+
+const detectLocalVsixTarget = () => {
+  const arch = process.arch;
+  if (process.platform === 'darwin' && (arch === 'arm64' || arch === 'x64')) {
+    return `darwin-${arch}`;
+  }
+  if (process.platform === 'linux' && arch === 'x64') {
+    return 'linux-x64';
+  }
+  if (process.platform === 'win32' && arch === 'x64') {
+    return 'win32-x64';
+  }
+  return '';
+};
+
+const ensureVsixArtifactsReady = ({ targets, allowBuildLocal }) => {
+  if (!targets || targets.length === 0) {
+    return;
+  }
+
+  const localBuildTarget = allowBuildLocal ? detectLocalVsixTarget() : '';
+  const missingTargets = targets.filter((target) => {
+    if (target === localBuildTarget) {
+      return false;
+    }
+    return !hasLocalBackendArtifact(target);
+  });
+
+  if (missingTargets.length > 0) {
+    const lines = [
+      'Missing backend targets before release publish:',
+      ...missingTargets.map((target) => `  - ${target}`),
+      '',
+      'Expected layout:',
+      '  build/vscode-backend-artifacts/<platform>-<arch>/counsel(.exe)',
+    ];
+    if (allowBuildLocal && localBuildTarget) {
+      lines.push('', `Note: BUILD_LOCAL_BACKEND=1 can build local target ${localBuildTarget}.`);
+    }
+    throw new StepError(lines.join('\n'));
+  }
+};
+
 const releaseModeLabel = () => {
   if (!SKIP_PYTHON_PUBLISH && !SKIP_VSCODE_PUBLISH) {
     return 'full';
@@ -585,11 +660,16 @@ const printReleasePlan = ({
   pythonRepository,
   vsixTargets,
   pendingVsixTargets,
+  runVsixTargets,
   pendingPython,
   isDryRun,
+  isCheckOnly,
   isResuming,
 }) => {
-  console.log(isDryRun ? '\nRelease dry run plan:' : '\nRelease plan:');
+  const heading = isDryRun
+    ? '\nRelease dry run plan:'
+    : (isCheckOnly ? '\nRelease preflight check plan:' : '\nRelease plan:');
+  console.log(heading);
   console.log(`- canonical version: ${fmtNextVersion(canonicalVersion)}`);
   console.log(
     `- version bump (${bumpType}): python ${fmtVersion(currentPythonVersion)} -> ${fmtNextVersion(nextPythonVersion)}, ` +
@@ -604,6 +684,9 @@ const printReleasePlan = ({
   if (isResuming) {
     console.log(`- pending python publish: ${pendingPython ? 'yes' : 'no (already successful)'}`);
     console.log(`- pending vscode targets: ${pendingVsixTargets.length > 0 ? pendingVsixTargets.join(', ') : 'none (all already successful)'}`);
+    if (!SKIP_VSCODE_PUBLISH && pendingVsixTargets.length > 0) {
+      console.log(`- vscode targets this run: ${runVsixTargets.join(', ')}`);
+    }
   }
   console.log(
     `- vscode marketplace channel: ${VSCE_PUBLISH_PRE_RELEASE ? 'pre-release (--pre-release)' : 'stable'}`,
@@ -620,6 +703,9 @@ const printReleasePlan = ({
   if (!RUN_POST_RELEASE_VERIFY) {
     console.log(`- post-release verification skipped (${fmtHint('RUN_POST_RELEASE_VERIFY=0')})`);
   }
+  if (isCheckOnly) {
+    console.log(`- execution mode: ${fmtHint('check-only (no version bump, no publish)')}`);
+  }
   if (!ALLOW_STABLE_RELEASE) {
     console.log(`- stable release lock: ${fmtHint('ON')} (flip ALLOW_STABLE_RELEASE=true to disable)`);
   } else {
@@ -630,7 +716,9 @@ const printReleasePlan = ({
 };
 
 const main = async () => {
-  const isDryRun = process.argv.slice(2).includes('--dry-run');
+  const cliArgs = process.argv.slice(2);
+  const isDryRun = cliArgs.includes('--dry-run');
+  const isCheckOnly = cliArgs.includes('--check-only');
   let releasePython = 'python3';
   let rollbackState = null;
   let releaseState = null;
@@ -683,10 +771,17 @@ const main = async () => {
       canonicalVersion = makeCanonicalPrereleaseVersion(nextParsed);
     }
 
-    const vsixTargets = readVsixTargets();
+    const requestedVsixTargets = readVsixTargets();
+    const stateVsixTargets = Array.isArray(existingReleaseState?.vsixTargets)
+      ? existingReleaseState.vsixTargets
+      : deriveVsixTargetsFromState(existingReleaseState);
+    const vsixTargets = resumingRelease
+      ? (stateVsixTargets && stateVsixTargets.length > 0 ? stateVsixTargets : requestedVsixTargets)
+      : requestedVsixTargets;
     releaseState = resumingRelease
       ? {
         ...existingReleaseState,
+        vsixTargets,
         status: 'in_progress',
         channels: existingReleaseState.channels || {},
         lastError: '',
@@ -702,10 +797,25 @@ const main = async () => {
     const pendingVsixTargets = SKIP_VSCODE_PUBLISH
       ? []
       : vsixTargets.filter((target) => getChannelStatus(releaseState, targetChannelKey(target)) !== 'success');
-    const requiredTargets = pendingVsixTargets.length > 0
-      ? (process.env.REQUIRED_TARGETS?.trim() || pendingVsixTargets.join(' '))
+    let runVsixTargets = pendingVsixTargets;
+    if (
+      resumingRelease
+      && !SKIP_VSCODE_PUBLISH
+      && !process.env.PACKAGE_TARGETS?.trim()
+      && pendingVsixTargets.length > 0
+    ) {
+      const availablePendingTargets = pendingVsixTargets.filter((target) => hasLocalBackendArtifact(target));
+      if (availablePendingTargets.length > 0 && availablePendingTargets.length < pendingVsixTargets.length) {
+        runVsixTargets = availablePendingTargets;
+        console.log(
+          `\n> Resume mode: auto-selecting locally available pending VSIX targets: ${runVsixTargets.join(', ')}`,
+        );
+      }
+    }
+    const requiredTargets = runVsixTargets.length > 0
+      ? (process.env.REQUIRED_TARGETS?.trim() || runVsixTargets.join(' '))
       : '';
-    const vsixFiles = pendingVsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
+    const vsixFiles = runVsixTargets.map((target) => `extension/persona-counsel-vscode-${target}.vsix`);
 
     printReleasePlan({
       bumpType,
@@ -717,12 +827,41 @@ const main = async () => {
       pythonRepository: PYTHON_REPOSITORY,
       vsixTargets,
       pendingVsixTargets,
+      runVsixTargets,
       pendingPython,
       isDryRun,
+      isCheckOnly,
       isResuming: resumingRelease,
     });
 
     if (isDryRun) {
+      process.exit(0);
+    }
+
+    if (isCheckOnly) {
+      if (!SKIP_VSCODE_PUBLISH && pendingVsixTargets.length > 0) {
+        ensureVsixArtifactsReady({
+          targets: runVsixTargets,
+          allowBuildLocal: BUILD_LOCAL_BACKEND,
+        });
+        if (!process.env.VSCE_PAT) {
+          throw new StepError(
+            'Preflight failed: missing VSCE_PAT for pending VS Code publish targets.',
+          );
+        }
+      }
+
+      if (!SKIP_PYTHON_PUBLISH && pendingPython) {
+        const hasTwinePassword = Boolean(process.env.TWINE_PASSWORD?.trim());
+        const hasPypiToken = Boolean(process.env.PYPI_API_TOKEN?.trim());
+        if (!hasTwinePassword && !hasPypiToken) {
+          throw new StepError(
+            'Preflight failed: missing Python publish credentials (set TWINE_PASSWORD or PYPI_API_TOKEN).',
+          );
+        }
+      }
+
+      console.log('\n✓ Release preflight check passed. No changes made.');
       process.exit(0);
     }
 
@@ -733,6 +872,13 @@ const main = async () => {
     if (!/^y(es)?$/i.test(confirm)) {
       console.log('\nRelease cancelled before version bump.');
       process.exit(0);
+    }
+
+    if (!SKIP_VSCODE_PUBLISH && pendingVsixTargets.length > 0) {
+      ensureVsixArtifactsReady({
+        targets: runVsixTargets,
+        allowBuildLocal: BUILD_LOCAL_BACKEND,
+      });
     }
 
     rollbackState = {
@@ -774,18 +920,24 @@ const main = async () => {
         throw new StepError('Missing VSCE_PAT. Set VSCE_PAT with a VS Code Marketplace PAT before publishing.');
       }
 
+      if (runVsixTargets.length === 0) {
+        throw new StepError(
+          'No pending VSIX targets selected for this run. Set PACKAGE_TARGETS explicitly, or build backend artifacts first.',
+        );
+      }
+
       const releaseVsixArgs = BUILD_LOCAL_BACKEND
         ? ['./scripts/release_vscode_extension.sh', '--build-local']
         : ['./scripts/release_vscode_extension.sh'];
 
       runStep(
-        `Package VS Code extension (${vsixTargets.join(', ')})`,
+        `Package VS Code extension (${runVsixTargets.join(', ')})`,
         releaseVsixArgs[0],
         releaseVsixArgs.slice(1),
         {
           env: {
             ...process.env,
-            PACKAGE_TARGETS: pendingVsixTargets.join(' '),
+            PACKAGE_TARGETS: runVsixTargets.join(' '),
             REQUIRED_TARGETS: requiredTargets,
             VSCE_PRE_RELEASE: VSCE_PUBLISH_PRE_RELEASE ? '1' : '0',
             [RELEASE_ENV]: '1',
@@ -795,7 +947,7 @@ const main = async () => {
 
       vsixFiles.forEach((vsixFile, idx) => {
         publishVsixToMarketplace(vsixFile);
-        markChannel(releaseState, targetChannelKey(pendingVsixTargets[idx]), 'success');
+        markChannel(releaseState, targetChannelKey(runVsixTargets[idx]), 'success');
       });
     } else if (!SKIP_VSCODE_PUBLISH) {
       console.log('\n> Skipping VS Code publish (all selected targets already successful in current release state)');
