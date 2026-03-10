@@ -26,6 +26,8 @@
 - [ ] Add lock refresh workflow (manual command + cadence).
 - [ ] Validate lock flow in CI.
 
+-- Stop Here --
+
 - [ ] Implement first real counsel execution loop (`list`, `summon`, `run`) with markdown trace output.
 - [ ] Define minimal v1 domain schema for persona and counsel configs.
 - [ ] Implement config loader + validation for `personas/` and `counsels/`.
