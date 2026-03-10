@@ -28,17 +28,17 @@
   - [ ] Fail release if required backend artifacts/targets are missing.
   - [ ] Keep `darwin-x64` excluded for now.
 
-- [ ] Add finalization gate and outputs.
-  - [ ] Enforce clean git tree before finalize.
-  - [ ] Add tracked ledger append to `releases/history.jsonl`.
-  - [ ] Create local tag `release/<canonicalVersion>`.
-  - [ ] Print explicit `git push origin <tag>` command.
-  - [ ] Clear local state only after successful finalize.
+- [x] Add finalization gate and outputs.
+  - [x] Enforce clean git tree before finalize.
+  - [x] Add tracked ledger append to `releases/history.jsonl`.
+  - [x] Create local tag `release/<canonicalVersion>`.
+  - [x] Print explicit `git push origin <tag>` command.
+  - [x] Clear local state only after successful finalize.
 
-- [ ] Update docs for new release contract.
-  - [ ] Update README release section with canonical version + retry model.
-  - [ ] Update release channels runbook with finalization rules.
-  - [ ] Document local state file and tracked ledger responsibilities.
+- [x] Update docs for new release contract.
+  - [x] Update README release section with canonical version + retry model.
+  - [x] Update release channels runbook with finalization rules.
+  - [x] Document local state file and tracked ledger responsibilities.
 
 - [ ] Add validation coverage.
   - [ ] Dry-run tests for first-attempt reservation and retry reuse.

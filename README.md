@@ -97,10 +97,16 @@ Notes:
   - prerelease lock (`ALLOW_STABLE_RELEASE=false`): `testpypi`
   - stable mode (`ALLOW_STABLE_RELEASE=true`): `pypi`
 - VS Code publish requires `VSCE_PAT` in environment.
-- Release script keeps Python + VS Code versions synchronized and bumps both together.
+- Release script keeps Python + VS Code versions synchronized under a canonical
+  prerelease identifier (`X.Y.Z-alpha.N`), with derived channel versions:
+  - Python: `X.Y.ZaN`
+  - VS Code: `X.Y.N`
+- Release state is tracked locally in `.release-state.local.json` (gitignored).
+  Failed/in-progress releases reuse the same reserved canonical version.
 - With `ALLOW_STABLE_RELEASE=false` (current default), only prerelease increments are allowed:
+  - canonical: `X.Y.Z-alpha.N` -> `X.Y.Z-alpha.(N+1)`
   - Python: `X.Y.ZaN` -> `X.Y.Za(N+1)`
-  - VS Code: `X.Y.Z-alpha.N` -> `X.Y.Z-alpha.(N+1)`
+  - VS Code: `X.Y.N` -> `X.Y.(N+1)`
 - In prerelease lock mode, VSIX packaging uses `--pre-release`, matching Marketplace publish mode.
 - Build signing expectation:
   - prerelease lock mode may produce unsigned macOS binaries while signing is being finalized
@@ -108,9 +114,15 @@ Notes:
 - `npm run release:dry` is non-interactive and shows the default prerelease bump plan.
 - To allow `patch`/`minor`/`major` base-version bumps, set `ALLOW_STABLE_RELEASE=true` in `scripts/release.mjs`.
 - On release failure after bump, local versions are rolled back to the previous synchronized pair.
+- Resume behavior auto-skips channels/targets already marked successful in release state.
 - On release failure, legacy `./.release-tools-venv` is also cleaned up if present.
 - `PACKAGE_TARGETS` now also drives `REQUIRED_TARGETS` by default in `npm run release`,
   so local single-target releases work without requiring the full backend matrix.
+- `npm run release` requires a clean repository (staged, unstaged, and untracked files must be clean).
+- On successful finalization:
+  - local tag `release/<canonicalVersion>` is created (or reused if already on current HEAD)
+  - ledger entry is appended to `releases/history.jsonl`
+  - local release state file is cleared
 - You can skip either channel with:
   - `SKIP_PYTHON_PUBLISH=1`
   - `SKIP_VSCODE_PUBLISH=1`

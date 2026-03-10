@@ -10,6 +10,22 @@ Release behavior is controlled in `scripts/release.mjs`:
 - `ALLOW_STABLE_RELEASE=false` (default): prerelease lock mode
 - `ALLOW_STABLE_RELEASE=true`: stable mode
 
+## Canonical Version + Local State
+
+Release flow uses a canonical prerelease version and derives channel versions:
+
+- canonical: `X.Y.Z-alpha.N`
+- Python: `X.Y.ZaN`
+- VS Code: `X.Y.N`
+
+Local release state file:
+
+- `.release-state.local.json` (gitignored)
+
+State records reserved version + per-channel progress. If a release fails,
+subsequent runs reuse the same reserved version until required channels are
+green.
+
 ## Prerelease (Alpha) Flow
 
 Use this mode for active development and early user testing.
@@ -37,7 +53,9 @@ Use this mode for active development and early user testing.
 
 - New prerelease version on TestPyPI (unless `SKIP_PYTHON_PUBLISH=1`)
 - New prerelease extension on Marketplace (unless `SKIP_VSCODE_PUBLISH=1`)
-- Post-release verification runs automatically after successful dual publish.
+- Post-release verification runs automatically whenever VS Code publish runs.
+- Resume runs auto-skip channels/targets already successful in local release
+  state.
 
 ## Stable Flow
 
@@ -67,7 +85,25 @@ If a failure happens after version bump:
 
 - `scripts/release.mjs` restores both local versions to previous synchronized
   values (`pyproject.toml` + `extension/package.json`).
+- `.release-state.local.json` is kept with `failed` status so retry can reuse
+  the same reserved version.
 - Legacy local release venv (`.release-tools-venv`) is cleaned up if present.
+
+## Finalization Contract
+
+Successful release finalization requires:
+
+- clean git working tree (no staged, unstaged, or untracked changes)
+- all required channels for the run mode are successful
+
+On finalize:
+
+- append tracked ledger entry: `releases/history.jsonl`
+- create local git tag: `release/<canonicalVersion>`
+  - if tag exists on current HEAD, reuse it
+  - if tag exists on different commit, fail
+- print manual push command: `git push origin <tag>`
+- clear local `.release-state.local.json`
 
 ## Useful Flags
 
