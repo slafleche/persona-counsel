@@ -102,6 +102,9 @@ Notes:
   - Python: `X.Y.ZaN` -> `X.Y.Za(N+1)`
   - VS Code: `X.Y.Z-alpha.N` -> `X.Y.Z-alpha.(N+1)`
 - In prerelease lock mode, VSIX packaging uses `--pre-release`, matching Marketplace publish mode.
+- Build signing expectation:
+  - prerelease lock mode may produce unsigned macOS binaries while signing is being finalized
+  - stable mode requires signed + notarized macOS binaries
 - `npm run release:dry` is non-interactive and shows the default prerelease bump plan.
 - To allow `patch`/`minor`/`major` base-version bumps, set `ALLOW_STABLE_RELEASE=true` in `scripts/release.mjs`.
 - On release failure after bump, local versions are rolled back to the previous synchronized pair.

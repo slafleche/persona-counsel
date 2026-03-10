@@ -27,6 +27,6 @@ Signing/notarization implementation checklist (next phase):
 - [x] Add macOS notarization + staple + verification step in CI.
 - [x] Add release-mode guardrails: stable mode requires signing/notarization success.
 - [x] Add secrets contract doc for Apple signing/notary credentials.
-- [ ] Add user-facing note in release docs describing signed vs unsigned build expectations.
+- [x] Add user-facing note in release docs describing signed vs unsigned build expectations.
 
 - [x] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
