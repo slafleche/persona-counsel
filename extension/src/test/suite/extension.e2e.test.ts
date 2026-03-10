@@ -16,7 +16,16 @@ type ExtensionApi = {
   getLastCommandResult: () => CommandResult | null;
 };
 
-const EXTENSION_ID = "persona-counsel.persona-counsel-vscode";
+function readExtensionId(): string {
+  const packageJsonPath = path.resolve(__dirname, "../../../package.json");
+  const packageJsonRaw = fs.readFileSync(packageJsonPath, "utf-8");
+  const packageJson = JSON.parse(packageJsonRaw) as { publisher?: string; name?: string };
+  assert.ok(packageJson.publisher, "Missing extension publisher in package.json");
+  assert.ok(packageJson.name, "Missing extension name in package.json");
+  return `${packageJson.publisher}.${packageJson.name}`;
+}
+
+const EXTENSION_ID = readExtensionId();
 
 function workspaceRoot(): string {
   const folder = vscode.workspace.workspaceFolders?.[0];
