@@ -33,6 +33,7 @@ const EXTENSION_PACKAGE_PATH = path.join(EXTENSION_DIR, 'package.json');
 const RELEASE_STATE_PATH = path.join(process.cwd(), '.release-state.local.json');
 const RELEASE_LEDGER_DIR = path.join(process.cwd(), 'releases');
 const RELEASE_LEDGER_PATH = path.join(RELEASE_LEDGER_DIR, 'history.jsonl');
+const RELEASE_LATEST_PATH = path.join(RELEASE_LEDGER_DIR, 'latest.json');
 const RELEASE_TOOLS_VENV = path.join(os.tmpdir(), 'persona-counsel-release-tools-venv');
 const LEGACY_RELEASE_TOOLS_VENV = '.release-tools-venv';
 
@@ -625,6 +626,52 @@ const appendReleaseLedger = ({
   appendFileSync(RELEASE_LEDGER_PATH, `${JSON.stringify(entry)}\n`, 'utf8');
 };
 
+const writeReleaseLatest = ({
+  canonicalVersion,
+  pythonVersion,
+  vscodeVersion,
+  channels,
+  vsixTargets,
+  tagName,
+  commit,
+}) => {
+  mkdirSync(RELEASE_LEDGER_DIR, { recursive: true });
+  const payload = {
+    canonicalVersion,
+    pythonVersion,
+    vscodeVersion,
+    mode: releaseModeLabel(),
+    vsixTargets,
+    channels,
+    tag: tagName,
+    commit,
+    timestamp: new Date().toISOString(),
+    status: 'published',
+  };
+  writeFileSync(RELEASE_LATEST_PATH, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+};
+
+const hasStagedChanges = () => {
+  const staged = runGit(['diff', '--cached', '--name-only']);
+  if (staged.status !== 0) {
+    const message = staged.stderr?.trim() || 'Unable to inspect staged changes.';
+    throw new StepError(message);
+  }
+  return Boolean((staged.stdout || '').trim());
+};
+
+const autoCommitAndPushRelease = ({ canonicalVersion, pythonVersion, vscodeVersion, tagName }) => {
+  runStep('Stage release tracking files', 'git', ['add', '-A']);
+  if (!hasStagedChanges()) {
+    console.log('\n> No new release-tracking git changes to commit.');
+  } else {
+    const commitMessage = `chore(release): publish ${canonicalVersion} (python ${pythonVersion}, vscode ${vscodeVersion})`;
+    runStep('Commit release tracking update', 'git', ['commit', '-m', commitMessage]);
+  }
+  runStep('Push release commit', 'git', ['push', 'origin', 'HEAD']);
+  runStep('Push release tag', 'git', ['push', 'origin', tagName]);
+};
+
 const publishVsixToMarketplace = (vsixPath) => {
   const publishArgs = ['--yes', '@vscode/vsce', 'publish', '--packagePath', vsixPath];
   if (VSCE_PUBLISH_PRE_RELEASE) {
@@ -995,6 +1042,9 @@ const main = async () => {
       );
     }
 
+    // Publishing is complete at this point; subsequent failures should not roll versions back.
+    rollbackState = null;
+
     const headSha = getCurrentHeadSha();
     const { tagName, created } = ensureReleaseTag(canonicalVersion, headSha);
     appendReleaseLedger({
@@ -1003,6 +1053,15 @@ const main = async () => {
       vscodeVersion: nextExtensionVersion,
       channels: releaseState.channels || {},
       vsixTargets,
+    });
+    writeReleaseLatest({
+      canonicalVersion,
+      pythonVersion: nextPythonVersion,
+      vscodeVersion: nextExtensionVersion,
+      channels: releaseState.channels || {},
+      vsixTargets,
+      tagName,
+      commit: headSha,
     });
 
     releaseState.status = 'complete';
@@ -1013,9 +1072,16 @@ const main = async () => {
       unlinkSync(RELEASE_STATE_PATH);
     }
 
+    autoCommitAndPushRelease({
+      canonicalVersion,
+      pythonVersion: nextPythonVersion,
+      vscodeVersion: nextExtensionVersion,
+      tagName,
+    });
+
     console.log(`\n> Release tag: ${tagName}${created ? ' (created)' : ' (already on HEAD)'}`);
-    console.log(`> Push tag: git push origin ${tagName}`);
     console.log(`> Ledger: ${path.relative(process.cwd(), RELEASE_LEDGER_PATH)}`);
+    console.log(`> Latest: ${path.relative(process.cwd(), RELEASE_LATEST_PATH)}`);
 
     console.log('\n✓ Release publish flow completed.');
   } catch (error) {
