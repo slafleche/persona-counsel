@@ -6,7 +6,6 @@ BACKEND_ARTIFACTS_DIR="$ROOT_DIR/build/vscode-backend-artifacts"
 
 DEFAULT_TARGETS=(
   "darwin-arm64"
-  "darwin-x64"
   "linux-x64"
   "win32-x64"
 )
