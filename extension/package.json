@@ -2,7 +2,7 @@
   "name": "persona-counsel-vscode",
   "displayName": "Persona Counsel",
   "description": "Thin VS Code wrapper for persona-counsel CLI",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "PersonaCouncel",
   "icon": "resources/icon.png",
   "license": "MIT",
