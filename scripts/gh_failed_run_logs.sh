@@ -47,4 +47,3 @@ for JOB_ID in $FAILED_JOB_IDS; do
   echo "===== FAILED JOB: $JOB_NAME ($JOB_ID) ====="
   gh run view "$RUN_ID" --job "$JOB_ID" --log | tail -n "$TAIL_LINES"
 done
-

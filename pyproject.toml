@@ -7,14 +7,25 @@ name = "persona-counsel"
 version = "0.1.0a4"
 description = "Persona Counsel CLI"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = {file = "LICENSE"}
 requires-python = ">=3.11"
 dependencies = [
   "typer>=0.12",
   "pydantic>=2.8",
   "pyyaml>=6.0",
-  "litellm>=1.58.0",
+  "litellm>=1.58.0"
 ]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.0,<7"]
+dev = [
+  "pre-commit>=3.8",
+  "pyproject-fmt>=2.5.1",
+  "ruff>=0.8"
+]
+
+[project.scripts]
+counsel = "persona_counsel.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/slafleche/persona-counsel"
@@ -22,20 +33,10 @@ Repository = "https://github.com/slafleche/persona-counsel"
 Issues = "https://github.com/slafleche/persona-counsel/issues"
 Changelog = "https://github.com/slafleche/persona-counsel/blob/main/CHANGELOG.md"
 
-[project.scripts]
-counsel = "persona_counsel.cli:main"
-
-[project.optional-dependencies]
-build = ["pyinstaller>=6.0,<7"]
-dev = [
-  "pre-commit>=3.8",
-  "ruff>=0.8",
-]
-
 [tool.hatch.build]
 exclude = [
   "/.release-tools-venv",
-  "/.release-tools-venv/**",
+  "/.release-tools-venv/**"
 ]
 
 [tool.ruff]
@@ -46,9 +47,8 @@ target-version = "py311"
 select = [
   "E",
   "F",
-  "I",
+  "I"
 ]
 ignore = [
-  "E501",
+  "E501"
 ]
-

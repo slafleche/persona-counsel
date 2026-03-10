@@ -55,3 +55,4 @@ extension/.vscode-test/
 .yarn/install-state.gz
 .yarn/build-state.yml
 .pnpm-store/
+.pre-commit-cache/
