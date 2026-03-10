@@ -7,6 +7,7 @@ import readline from 'node:readline';
 const SKIP_PYTHON_PUBLISH = process.env.SKIP_PYTHON_PUBLISH === '1';
 const SKIP_VSCODE_PUBLISH = process.env.SKIP_VSCODE_PUBLISH === '1';
 const BUILD_LOCAL_BACKEND = process.env.BUILD_LOCAL_BACKEND === '1';
+const RUN_POST_RELEASE_VERIFY = process.env.RUN_POST_RELEASE_VERIFY !== '0';
 const RELEASE_ENV = 'PERSONA_COUNSEL_RELEASE';
 const ALLOW_STABLE_RELEASE = false;
 const EXPECTED_PYTHON_REPOSITORY = ALLOW_STABLE_RELEASE ? 'pypi' : 'testpypi';
@@ -90,6 +91,17 @@ const readJsonVersion = (filePath) => {
   const raw = readFileSync(filePath, 'utf8');
   const data = JSON.parse(raw);
   return String(data.version || '').trim();
+};
+
+const readExtensionIdentity = () => {
+  const raw = readFileSync(EXTENSION_PACKAGE_PATH, 'utf8');
+  const data = JSON.parse(raw);
+  const publisher = String(data.publisher || '').trim();
+  const name = String(data.name || '').trim();
+  if (!publisher || !name) {
+    throw new StepError('Missing publisher/name in extension/package.json.');
+  }
+  return `${publisher}.${name}`;
 };
 
 const readPythonVersion = () => {
@@ -405,6 +417,9 @@ const printReleasePlan = ({
   if (SKIP_VSCODE_PUBLISH) {
     console.log(`- vscode publishing skipped (${fmtHint('SKIP_VSCODE_PUBLISH=1')})`);
   }
+  if (!RUN_POST_RELEASE_VERIFY) {
+    console.log(`- post-release verification skipped (${fmtHint('RUN_POST_RELEASE_VERIFY=0')})`);
+  }
   if (!ALLOW_STABLE_RELEASE) {
     console.log(`- stable release lock: ${fmtHint('ON')} (flip ALLOW_STABLE_RELEASE=true to disable)`);
   } else {
@@ -429,6 +444,7 @@ const main = async () => {
 
     const currentPythonVersion = readPythonVersion();
     const currentExtensionVersion = readJsonVersion(EXTENSION_PACKAGE_PATH);
+    const extensionId = readExtensionIdentity();
     const currentParsed = ensureSynchronizedCurrentVersions(
       currentPythonVersion,
       currentExtensionVersion,
@@ -528,6 +544,24 @@ const main = async () => {
       );
 
       vsixFiles.forEach((vsixFile) => publishVsixToMarketplace(vsixFile));
+    }
+
+    if (RUN_POST_RELEASE_VERIFY && !SKIP_PYTHON_PUBLISH && !SKIP_VSCODE_PUBLISH) {
+      runStep(
+        'Post-release verification',
+        './scripts/post_release_verify.sh',
+        [],
+        {
+          env: {
+            ...process.env,
+            PYTHON_REPOSITORY,
+            EXTENSION_ID: extensionId,
+            [RELEASE_ENV]: '1',
+          },
+        },
+      );
+    } else if (RUN_POST_RELEASE_VERIFY) {
+      console.log('\n> Post-release verification skipped (requires both Python and VS Code publish steps enabled)');
     }
 
     console.log('\n✓ Release publish flow completed.');

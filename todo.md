@@ -5,12 +5,12 @@
 - [ ] Run CI on a branch and confirm macOS notarization step runs (not skipped).
 - [ ] Capture one successful signed/notarized run URL in docs.
 
-- [ ] Add `post-release` verification script (Marketplace listing, package index version, extension ID consistency).
-- [ ] Create `scripts/post_release_verify.sh` with clear pass/fail exit codes.
+- [x] Add `post-release` verification script (Marketplace listing, package index version, extension ID consistency).
+- [x] Create `scripts/post_release_verify.sh` with clear pass/fail exit codes.
 - [ ] Verify VS Code listing exists for `PersonaCouncel.persona-counsel-vscode`.
 - [ ] Verify VS Code version matches local extension version.
 - [ ] Verify TestPyPI/PyPI version matches local Python version based on release mode.
-- [ ] Add script usage docs to README release section.
+- [x] Add script usage docs to README release section.
 
 - [ ] Write one-page release channels runbook (`alpha/prerelease` flow vs `stable` flow).
 - [ ] Add `docs/release_channels.md`.

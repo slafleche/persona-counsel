@@ -115,6 +115,21 @@ Notes:
   - `SKIP_PYTHON_PUBLISH=1`
   - `SKIP_VSCODE_PUBLISH=1`
 
+Post-release verification:
+
+```bash
+./scripts/post_release_verify.sh
+```
+
+Optional overrides:
+
+- `EXTENSION_ID` (default: `PersonaCouncel.persona-counsel-vscode`)
+- `PYTHON_REPOSITORY` (default: `testpypi`, set to `pypi` for stable-mode checks)
+
+`npm run release` now runs post-release verification automatically after a
+successful publish when both channels are enabled. To disable automatic
+verification for a run, set `RUN_POST_RELEASE_VERIFY=0`.
+
 Custom CI target set example:
 
 ```bash
