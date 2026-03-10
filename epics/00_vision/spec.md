@@ -90,6 +90,41 @@ Recommended user install path:
 
 - `pipx install persona-counsel`
 
+## Binary Signing and Notarization Strategy
+
+Current alpha policy:
+
+- Pre-release binaries can ship unsigned while we validate packaging and release
+  automation.
+- Release notes should clearly state that signing/notarization is pending for
+  alpha builds.
+
+Stable-release policy (required before stable GA):
+
+- macOS binaries must be signed with Apple Developer ID Application certificate.
+- macOS binaries must be notarized with Apple Notary service and stapled.
+- Windows binary signing is recommended (Authenticode) and should be planned as
+  a follow-up task.
+- Linux binaries remain checksum-verified through manifest/hash integrity checks.
+
+Execution plan:
+
+- Add CI signing stage for macOS backend artifacts after PyInstaller build.
+- Add CI notarization stage for macOS artifacts, including staple and verify.
+- Fail release pipeline if macOS signing/notarization verification fails in
+  stable mode.
+- Keep pre-release lock mode permissive until certificates/secrets are fully
+  wired.
+
+Secrets and operational requirements:
+
+- Apple credentials and signing material must be stored as CI secrets (never in
+  repo).
+- Local release should continue to work without Apple secrets for development
+  builds.
+- Stable release mode should enforce presence of required signing/notarization
+  secrets.
+
 ## Non-Goals for v1
 
 - Building VS Code UI.

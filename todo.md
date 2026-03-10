@@ -19,6 +19,14 @@
 
 - [x] Refactor release script to stop npm publishing and publish to Python package indexes + VS Code Marketplace while keeping generic release orchestration logic.
 
-- [ ] Define signing/notarization strategy for distributed backend binaries (especially macOS).
+- [x] Define signing/notarization strategy for distributed backend binaries (especially macOS).
 
-- [ ] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
+Signing/notarization implementation checklist (next phase):
+
+- [ ] Add macOS code-signing step in CI for bundled backend binary (`counsel`).
+- [ ] Add macOS notarization + staple + verification step in CI.
+- [ ] Add release-mode guardrails: stable mode requires signing/notarization success.
+- [ ] Add secrets contract doc for Apple signing/notary credentials.
+- [ ] Add user-facing note in release docs describing signed vs unsigned build expectations.
+
+- [x] Restore `darwin-x64` backend CI build when an Intel macOS runner configuration is available.
