@@ -1,10 +1,7 @@
 
 ## Portability / Installability
 
-- [ ] Build and publish VSIX targets for `linux-x64` and `win32-x64` (not only `darwin-arm64`).
-- [ ] Run VSIX smoke tests on clean Linux and Windows machines for the same published version.
-- [ ] Verify extension runtime behavior on non-macOS in production mode (strict PATH fallback rules).
-- [ ] Add a fresh-machine install validation checklist for VS Code extension + CLI paths.
+- [ ] Tracked in Epic 01: `epics/01_portability/01_portability_plan.md`
 
 == Blocking ==
 
