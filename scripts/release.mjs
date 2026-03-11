@@ -57,6 +57,7 @@ const color = (value, tone) => (USE_COLOR ? `${ANSI[tone]}${value}${ANSI.reset}`
 const fmtVersion = (version) => color(version, 'cyan');
 const fmtNextVersion = (version) => color(version, 'green');
 const fmtHint = (value) => color(value, 'dim');
+const fmtErrorMark = () => color('✖', 'red');
 
 const formatPromptQuestion = (question, defaultValue = '') => {
   const normalizedDefault = String(defaultValue || '').toLowerCase();
@@ -903,6 +904,9 @@ const main = async () => {
           console.log(
             '> Provide those artifacts under build/vscode-backend-artifacts/<platform>-<arch>/counsel(.exe) before publish.',
           );
+          throw new StepError(
+            `Backend matrix incomplete for new release: missing ${missingBeforePlan.join(', ')}.`,
+          );
         } else {
           console.log('> Backend matrix check before release plan: all selected targets available.');
         }
@@ -1204,12 +1208,12 @@ const main = async () => {
       rollbackVersions(rollbackState);
     } catch (rollbackError) {
       const message = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
-      console.error(`\n✖ Rollback failed: ${message}`);
+      console.error(`\n${fmtErrorMark()} Rollback failed: ${message}`);
     }
 
     const exitCode = error instanceof StepError ? error.exitCode : 1;
     cleanupLegacyReleaseVenv();
-    console.error(`\n✖ ${message}`);
+    console.error(`\n${fmtErrorMark()} ${message}`);
     process.exit(exitCode);
   }
 };
