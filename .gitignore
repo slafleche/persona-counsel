@@ -24,6 +24,7 @@ vite.svg
 .env
 .env.*
 .release-state.local.json
+*.bak
 
 # Python
 __pycache__/
