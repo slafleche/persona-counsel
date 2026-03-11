@@ -127,10 +127,10 @@ All meaningful outputs are written to files rather than remaining inside the con
 Example structure:
 
 book/
- page1.md
- page1.png
- page2.md
- page2.png
+page1.md
+page1.png
+page2.md
+page2.png
 
 This approach provides several benefits:
 
@@ -138,3 +138,5 @@ This approach provides several benefits:
 - files can be versioned with Git
 - artifacts remain usable outside the chat environment
 - the conversation stays concise
+
+Bonus, we export the final book as an html zip or something
