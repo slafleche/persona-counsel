@@ -17,6 +17,7 @@ Primary commands:
 ```bash
 npm run release:dry
 npm run release -- --check-only
+npm run release:queue
 npm run release:reset
 ```
 
@@ -28,6 +29,7 @@ npm run release:reset
 |---|---|---|
 | Local dry run | `npm run release:dry` | Show synchronized release plan only |
 | Local preflight | `npm run release -- --check-only` | Validate local release prerequisites without publishing |
+| Queue CI publish | `npm run release:queue` | Dispatch release workflow for current lane branch (`prerelease` or `release`) |
 | Local reset | `npm run release:reset` | Clear local release state and restore latest published pair |
 | CI publish | GitHub Actions workflow run | Build matrix, publish, verify, tag, track |
 
@@ -42,14 +44,15 @@ npm run release:reset
 
 1. Open PR into target release lane (`prerelease` or `release`).
 2. Ensure CI checks pass on PR.
-3. Merge PR to trigger workflow:
-   - `.github/workflows/release_artifact_matrix.yml`
-4. Confirm workflow publish/verify completion.
-5. Confirm release tracking outputs:
+3. Merge PR.
+4. Queue release workflow from local terminal:
+   - `npm run release:queue`
+5. Confirm workflow publish/verify completion.
+6. Confirm release tracking outputs:
    - `releases/history.jsonl`
    - `releases/latest.json`
    - git tag `release/<canonicalVersion>`
-6. If interrupted/stuck, run `npm run release:reset` locally before retrying diagnostics.
+7. If interrupted/stuck, run `npm run release:reset` locally before retrying diagnostics.
 
 ## Artifact matrix note
 
@@ -92,7 +95,7 @@ Successful finalization updates:
 ## Common failures
 
 1. `Release publish is CI-only`
-   - Run local preflight commands only, then trigger CI release workflow.
+   - Run local preflight commands only, then run `npm run release:queue`.
 2. Missing matrix artifacts
    - Ensure CI produced all required targets under `build/vscode-backend-artifacts/...`.
 3. Missing secrets

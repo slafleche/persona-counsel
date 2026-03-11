@@ -893,7 +893,7 @@ const main = async () => {
 
     if (!isDryRun && !isCheckOnly && ENFORCE_CI_RELEASE && !RUNNING_IN_CI) {
       throw new StepError(
-        'Release publish is CI-only. Run local preflight with `npm run release:dry` or `npm run release -- --check-only`, then trigger the GitHub Actions release workflow.',
+        'Release publish is CI-only. Run local preflight with `npm run release:dry` or `npm run release -- --check-only`, then queue CI with `npm run release:queue`.',
       );
     }
 
