@@ -122,6 +122,7 @@ Notes:
 - `npm run release` requires a clean repository (staged, unstaged, and untracked files must be clean).
 - `npm run release` publish path is CI-only; local command is for dry/preflight only.
 - Queue official publish workflow from terminal with `npm run release:queue` on `prerelease` or `release`.
+- Official lane release does not require manual artifact download/upload; CI performs matrix build, package, publish, and verify.
 - On successful finalization:
   - local tag `release/<canonicalVersion>` is created (or reused if already on current HEAD)
   - ledger entry is appended to `releases/history.jsonl`
