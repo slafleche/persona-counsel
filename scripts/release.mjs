@@ -18,6 +18,8 @@ const SKIP_VSCODE_PUBLISH = process.env.SKIP_VSCODE_PUBLISH === '1';
 const BUILD_LOCAL_BACKEND = process.env.BUILD_LOCAL_BACKEND === '1';
 const RUN_POST_RELEASE_VERIFY = process.env.RUN_POST_RELEASE_VERIFY !== '0';
 const RECONCILE_VSCODE_ON_VERSION_MATCH = process.env.RECONCILE_VSCODE_ON_VERSION_MATCH !== '0';
+const ENFORCE_CI_RELEASE = process.env.ENFORCE_CI_RELEASE !== '0';
+const RUNNING_IN_CI = process.env.GITHUB_ACTIONS === 'true' || process.env.CI === 'true';
 const RELEASE_ENV = 'PERSONA_COUNSEL_RELEASE';
 const ALLOW_STABLE_RELEASE = false;
 const EXPECTED_PYTHON_REPOSITORY = ALLOW_STABLE_RELEASE ? 'pypi' : 'testpypi';
@@ -826,6 +828,12 @@ const main = async () => {
       throw new StepError(
         `Python repository policy mismatch: ALLOW_STABLE_RELEASE=${ALLOW_STABLE_RELEASE} requires ` +
         `${EXPECTED_PYTHON_REPOSITORY}, but got ${PYTHON_REPOSITORY}.`,
+      );
+    }
+
+    if (!isDryRun && !isCheckOnly && ENFORCE_CI_RELEASE && !RUNNING_IN_CI) {
+      throw new StepError(
+        'Release publish is CI-only. Run local preflight with `npm run release:dry` or `npm run release -- --check-only`, then trigger the GitHub Actions release workflow.',
       );
     }
 

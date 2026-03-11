@@ -167,6 +167,7 @@ Run local backend validation:
 
 ## Docs
 
+- Release runbook: `RELEASE.md`
 - Vision/spec: `epics/00_vision/spec.md`
 - Tech stack v1: `epics/00_vision/persona-counsel-tech-stack_v1.md`
 - VS Code backend contract: `vscode/BACKEND.md`

@@ -1,7 +1,7 @@
 
 ## Portability / Installability
 
-- [ ] Tracked in Epic 01: `epics/01_portability/01_portability_plan.md`
+- [ ] Tracked in Epic 01: `epics/01_artifactmatrix/01_artifactmatrix_plan.md`
 
 == Blocking ==
 
