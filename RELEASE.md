@@ -36,6 +36,7 @@ npm run release:reset
 - `main`: development / experimentation
 - `prerelease`: prerelease publication pipeline
 - `release`: stable publication pipeline (future-ready lane)
+- Open PRs from feature branches into `prerelease` (or `release`) to trigger release-lane CI.
 
 ## Operator checklist
 
