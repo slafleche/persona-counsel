@@ -88,7 +88,8 @@ Full publish orchestrator (Python package + VS Code Marketplace):
 
 ```bash
 npm run release:dry
-npm run release
+npm run release -- --check-only
+npm run release:queue
 ```
 
 Notes:
@@ -119,6 +120,8 @@ Notes:
 - `PACKAGE_TARGETS` now also drives `REQUIRED_TARGETS` by default in `npm run release`,
   so local single-target releases work without requiring the full backend matrix.
 - `npm run release` requires a clean repository (staged, unstaged, and untracked files must be clean).
+- `npm run release` publish path is CI-only; local command is for dry/preflight only.
+- Queue official publish workflow from terminal with `npm run release:queue` on `prerelease` or `release`.
 - On successful finalization:
   - local tag `release/<canonicalVersion>` is created (or reused if already on current HEAD)
   - ledger entry is appended to `releases/history.jsonl`
