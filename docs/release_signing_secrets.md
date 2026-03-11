@@ -49,10 +49,10 @@ export APPLE_NOTARY_KEYCHAIN_PROFILE="AC_NOTARY_PROFILE"
 
 ## Behavior Matrix
 
-- Pre-release lock mode (`ALLOW_STABLE_RELEASE=false`):
+- Pre-release mode (branch is not `release`):
   - Missing secrets: signing/notarization steps skip.
   - Present secrets: signing/notarization steps run.
 
-- Stable mode (`ALLOW_STABLE_RELEASE=true`):
+- Stable mode (`release` branch):
   - Missing required vars: release script fails before publishing.
   - Required vars present: release can proceed.

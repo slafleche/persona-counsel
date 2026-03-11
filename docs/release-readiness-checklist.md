@@ -44,8 +44,8 @@ Related docs:
 
 ## Signed vs Unsigned Build Expectations
 
-- [ ] Pre-release lock mode (`ALLOW_STABLE_RELEASE=false`): release notes clearly
+- [ ] Pre-release mode (branch is not `release`): release notes clearly
       indicate whether shipped macOS binaries are signed/notarized or unsigned.
-- [ ] Stable release mode (`ALLOW_STABLE_RELEASE=true`): macOS backend binaries
+- [ ] Stable release mode (`release` branch): macOS backend binaries
       are signed and notarized; do not ship unsigned stable builds.
 - [ ] If signing/notary secrets are missing, only prerelease builds are allowed.

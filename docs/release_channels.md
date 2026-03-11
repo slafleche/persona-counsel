@@ -7,8 +7,8 @@ This runbook defines how persona-counsel releases move through prerelease
 
 Release behavior is controlled in `scripts/release.mjs`:
 
-- `ALLOW_STABLE_RELEASE=false` (default): prerelease lock mode
-- `ALLOW_STABLE_RELEASE=true`: stable mode
+- any branch except `release`: prerelease lock mode
+- `release` branch: stable mode
 
 ## Canonical Version + Local State
 

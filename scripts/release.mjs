@@ -37,10 +37,10 @@ const detectReleaseBranchName = () => {
   return branch === 'HEAD' ? '' : branch;
 };
 const RELEASE_BRANCH = detectReleaseBranchName();
-const ALLOW_STABLE_RELEASE = RELEASE_BRANCH === 'release';
-const EXPECTED_PYTHON_REPOSITORY = ALLOW_STABLE_RELEASE ? 'pypi' : 'testpypi';
+const IS_STABLE_RELEASE = RELEASE_BRANCH === 'release';
+const EXPECTED_PYTHON_REPOSITORY = IS_STABLE_RELEASE ? 'pypi' : 'testpypi';
 const PYTHON_REPOSITORY = process.env.PYTHON_REPOSITORY || EXPECTED_PYTHON_REPOSITORY;
-const VSCE_PUBLISH_PRE_RELEASE = !ALLOW_STABLE_RELEASE;
+const VSCE_PUBLISH_PRE_RELEASE = !IS_STABLE_RELEASE;
 const STABLE_SIGNING_REQUIRED_ENV = [
   'APPLE_CODESIGN_IDENTITY',
   'APPLE_NOTARY_KEYCHAIN_PROFILE',
@@ -479,7 +479,7 @@ const bumpPrereleaseOnly = (parsed) => ({
 });
 
 const chooseBumpType = async () => {
-  if (!ALLOW_STABLE_RELEASE) {
+  if (!IS_STABLE_RELEASE) {
     return 'prerelease';
   }
 
@@ -500,31 +500,31 @@ const chooseBumpType = async () => {
   return bumpType;
 };
 
-const defaultBumpType = () => (ALLOW_STABLE_RELEASE ? 'patch' : 'prerelease');
+const defaultBumpType = () => (IS_STABLE_RELEASE ? 'patch' : 'prerelease');
 
 const isPythonPrereleaseVersion = (version) => /(a|b|rc)\d+|\.dev\d+/i.test(version);
 const isVsCodePrereleaseVersion = (version) => /-/.test(version);
 
 const enforcePrereleaseOnly = (pythonVersion, vscodeVersion) => {
-  if (ALLOW_STABLE_RELEASE) {
+  if (IS_STABLE_RELEASE) {
     return;
   }
   if (!isPythonPrereleaseVersion(pythonVersion)) {
     throw new StepError(
-      `Stable Python version blocked by prerelease lock: ${pythonVersion}. ` +
+      `Stable Python version blocked by branch release mode policy: ${pythonVersion}. ` +
       'Use a prerelease version (for example 0.1.0a1) or run release from the `release` branch.',
     );
   }
   if (!parseVsCodePrereleaseVersion(vscodeVersion) && !parseVsCodeStableVersion(vscodeVersion)) {
     throw new StepError(
-      `Stable VS Code extension version blocked by prerelease lock: ${vscodeVersion}. ` +
+      `Stable VS Code extension version blocked by branch release mode policy: ${vscodeVersion}. ` +
       'Use a prerelease-compatible version (legacy X.Y.Z-alpha.N or Marketplace-compatible X.Y.N), or run release from the `release` branch.',
     );
   }
 };
 
 const enforceStableSigningGuardrails = () => {
-  if (!ALLOW_STABLE_RELEASE) {
+  if (!IS_STABLE_RELEASE) {
     return;
   }
 
@@ -827,7 +827,7 @@ const printReleasePlan = ({
   if (isCheckOnly) {
     console.log(`- execution mode: ${fmtHint('check-only (no version bump, no publish)')}`);
   }
-  if (!ALLOW_STABLE_RELEASE) {
+  if (!IS_STABLE_RELEASE) {
     console.log(`- stable release lock: ${fmtHint('ON')} (active when branch is not "release")`);
   } else {
     console.log(
@@ -847,7 +847,7 @@ const main = async () => {
   try {
     if (PYTHON_REPOSITORY !== EXPECTED_PYTHON_REPOSITORY) {
       throw new StepError(
-        `Python repository policy mismatch: ALLOW_STABLE_RELEASE=${ALLOW_STABLE_RELEASE} requires ` +
+        `Python repository policy mismatch for branch mode (stable=${IS_STABLE_RELEASE}): requires ` +
         `${EXPECTED_PYTHON_REPOSITORY}, but got ${PYTHON_REPOSITORY}.`,
       );
     }
@@ -892,7 +892,7 @@ const main = async () => {
         ? bumpPrereleaseOnly(currentParsed)
         : bumpBaseVersion(currentParsed, bumpType);
       nextPythonVersion = makePythonPrereleaseVersion(nextParsed);
-      nextExtensionVersion = ALLOW_STABLE_RELEASE
+      nextExtensionVersion = IS_STABLE_RELEASE
         ? makeVsCodePrereleaseVersion(nextParsed)
         : makeVsCodeMarketplacePrereleaseVersion(nextParsed);
       canonicalVersion = makeCanonicalPrereleaseVersion(nextParsed);
