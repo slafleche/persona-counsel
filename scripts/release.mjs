@@ -64,6 +64,13 @@ const ANSI = {
   red: '\u001b[31m',
 };
 
+const RELEASE_COMMIT_FILES = [
+  'pyproject.toml',
+  'extension/package.json',
+  'releases/history.jsonl',
+  'releases/latest.json',
+];
+
 class StepError extends Error {
   constructor(message, exitCode = 1) {
     super(message);
@@ -701,8 +708,40 @@ const hasStagedChanges = () => {
   return Boolean((staged.stdout || '').trim());
 };
 
+const parsePorcelainPath = (line) => {
+  const entry = line.slice(3).trim();
+  if (entry.includes(' -> ')) {
+    const [, nextPath] = entry.split(' -> ');
+    return String(nextPath || '').trim();
+  }
+  return entry;
+};
+
+const ensureOnlyReleaseCommitFilesChanged = () => {
+  const status = runGit(['status', '--porcelain', '--untracked-files=all']);
+  if (status.status !== 0) {
+    const message = status.stderr?.trim() || 'Unable to inspect git status.';
+    throw new StepError(message);
+  }
+
+  const allowed = new Set(RELEASE_COMMIT_FILES);
+  const changedLines = (status.stdout || '')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+
+  const changedPaths = changedLines.map(parsePorcelainPath).filter(Boolean);
+  const unexpected = changedPaths.filter((path) => !allowed.has(path));
+  if (unexpected.length > 0) {
+    throw new StepError(
+      `Release produced unexpected changed files; refusing auto-commit: ${unexpected.join(', ')}`,
+    );
+  }
+};
+
 const autoCommitAndPushRelease = ({ canonicalVersion, pythonVersion, vscodeVersion, tagName }) => {
-  runStep('Stage release tracking files', 'git', ['add', '-A']);
+  ensureOnlyReleaseCommitFilesChanged();
+  runStep('Stage release tracking files', 'git', ['add', '--', ...RELEASE_COMMIT_FILES]);
   if (!hasStagedChanges()) {
     console.log('\n> No new release-tracking git changes to commit.');
   } else {

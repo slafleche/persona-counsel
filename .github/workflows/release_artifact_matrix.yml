@@ -7,6 +7,13 @@ on:
       - prerelease
       - release
 
+permissions:
+  contents: write
+
+concurrency:
+  group: release-artifact-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-backend-matrix:
     name: Build Backend (${{ matrix.target }})
@@ -37,8 +44,296 @@ jobs:
         shell: bash
         run: ./scripts/build_vscode_backend.sh
 
+      - name: Write backend checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import pathlib
+
+          target = "${{ matrix.target }}"
+          root = pathlib.Path("build/vscode-backend-artifacts") / target
+          binary = root / ("counsel.exe" if target.startswith("win32-") else "counsel")
+          if not binary.exists():
+            raise SystemExit(f"missing backend binary: {binary}")
+          digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+          checksum_file = root / "SHA256SUMS.txt"
+          checksum_file.write_text(f"{digest}  {binary.name}\n", encoding="utf-8")
+          print(f"wrote {checksum_file}: {digest}")
+          PY
+
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.target }}
           path: build/vscode-backend-artifacts/${{ matrix.target }}/**
+
+  release-orchestrator:
+    name: Release Orchestrator
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend-matrix
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preflight required release secrets
+        shell: bash
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${VSCE_PAT:-}" ]] || missing+=("VSCE_PAT")
+          [[ -n "${TWINE_USERNAME:-}" ]] || missing+=("TWINE_USERNAME")
+          [[ -n "${TWINE_PASSWORD:-}" ]] || missing+=("TWINE_PASSWORD")
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing required secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+          echo "Release secret preflight: ok"
+
+      - name: Download backend artifact (darwin-arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-darwin-arm64
+          path: build/vscode-backend-artifacts/darwin-arm64
+
+      - name: Download backend artifact (linux-x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-linux-x64
+          path: build/vscode-backend-artifacts/linux-x64
+
+      - name: Download backend artifact (win32-x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-win32-x64
+          path: build/vscode-backend-artifacts/win32-x64
+
+      - name: Validate downloaded backend artifact layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -la build/vscode-backend-artifacts || true
+          missing=0
+          check_file() {
+            local f="$1"
+            if [[ ! -f "$f" ]]; then
+              echo "missing: $f" >&2
+              missing=1
+            else
+              echo "ok: $f"
+            fi
+          }
+          check_file build/vscode-backend-artifacts/darwin-arm64/counsel
+          check_file build/vscode-backend-artifacts/linux-x64/counsel
+          check_file build/vscode-backend-artifacts/win32-x64/counsel.exe
+          if [[ "$missing" -ne 0 ]]; then
+            echo "Downloaded artifact layout is incomplete." >&2
+            exit 1
+          fi
+
+      - name: Verify downloaded backend checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import pathlib
+
+          root = pathlib.Path("build/vscode-backend-artifacts")
+          targets = ("darwin-arm64", "linux-x64", "win32-x64")
+
+          for target in targets:
+            target_dir = root / target
+            checksum_file = target_dir / "SHA256SUMS.txt"
+            if not checksum_file.exists():
+              raise SystemExit(f"missing checksum file: {checksum_file}")
+
+            line = checksum_file.read_text(encoding="utf-8").strip()
+            expected, filename = line.split("  ", 1)
+            binary = target_dir / filename
+            if not binary.exists():
+              raise SystemExit(f"missing binary referenced by checksum: {binary}")
+
+            actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+            if actual != expected:
+              raise SystemExit(
+                f"checksum mismatch for {target}: expected={expected} actual={actual}",
+              )
+            print(f"checksum ok: {target} -> {filename}")
+          PY
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Package VSIX from downloaded matrix artifacts (no publish)
+        shell: bash
+        env:
+          VSCE_PRE_RELEASE: ${{ github.ref_name == 'release' && '0' || '1' }}
+        run: REQUIRED_TARGETS="darwin-arm64 linux-x64 win32-x64" PACKAGE_TARGETS="darwin-arm64 linux-x64 win32-x64" ./scripts/release_vscode_extension.sh
+
+      - name: Configure git identity for release commit/tag
+        if: github.ref_name == 'prerelease' || github.ref_name == 'release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish release (non-interactive, prerelease lane)
+        if: github.ref_name == 'prerelease'
+        shell: bash
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+          PYTHON_REPOSITORY: testpypi
+          RUN_POST_RELEASE_VERIFY: "1"
+          RECONCILE_VSCODE_ON_VERSION_MATCH: "1"
+          REQUIRED_TARGETS: darwin-arm64 linux-x64 win32-x64
+          PACKAGE_TARGETS: darwin-arm64 linux-x64 win32-x64
+        run: |
+          set -euo pipefail
+          printf 'y\n' | npm run release
+
+      - name: Publish release (manual promotion, stable lane)
+        if: github.ref_name == 'release' && github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+          PYTHON_REPOSITORY: pypi
+          RUN_POST_RELEASE_VERIFY: "1"
+          RECONCILE_VSCODE_ON_VERSION_MATCH: "1"
+          REQUIRED_TARGETS: darwin-arm64 linux-x64 win32-x64
+          PACKAGE_TARGETS: darwin-arm64 linux-x64 win32-x64
+        run: |
+          set -euo pipefail
+          printf 'p\ny\n' | npm run release
+
+      - name: Stable lane requires manual workflow_dispatch to publish
+        if: github.ref_name == 'release' && github.event_name != 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo "Release branch publish skipped on push. Use workflow_dispatch for manual stable promotion."
+
+      - name: Build release summary output
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-summary
+          python - <<'PY'
+          import json
+          import pathlib
+
+          branch = "${{ github.ref_name }}"
+          event = "${{ github.event_name }}"
+          sha = "${{ github.sha }}"
+          run_url = "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          latest_path = pathlib.Path("releases/latest.json")
+          latest = {}
+          if latest_path.exists():
+            try:
+              latest = json.loads(latest_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+              latest = {}
+
+          canonical = latest.get("canonicalVersion", "n/a")
+          python_version = latest.get("pythonVersion", "n/a")
+          vscode_version = latest.get("vscodeVersion", "n/a")
+          tag = latest.get("tag", "n/a")
+          commit = latest.get("commit", sha)
+          channels = latest.get("channels", {})
+          mode = latest.get("mode", "n/a")
+
+          vscode_publisher = "PersonaCouncel"
+          vscode_name = "persona-counsel-vscode"
+          vscode_item = f"{vscode_publisher}.{vscode_name}"
+          vscode_url = f"https://marketplace.visualstudio.com/items?itemName={vscode_item}"
+          vscode_manage_url = (
+            f"https://marketplace.visualstudio.com/manage/publishers/{vscode_publisher}/"
+            f"extensions/{vscode_name}/hub"
+          )
+
+          python_repo = "pypi" if branch == "release" else "testpypi"
+          if python_version != "n/a":
+            pypi_project_url = (
+              f"https://pypi.org/project/persona-counsel/{python_version}/"
+              if python_repo == "pypi"
+              else f"https://test.pypi.org/project/persona-counsel/{python_version}/"
+            )
+          else:
+            pypi_project_url = "n/a"
+
+          payload = {
+            "branch": branch,
+            "event": event,
+            "mode": mode,
+            "canonicalVersion": canonical,
+            "pythonVersion": python_version,
+            "vscodeVersion": vscode_version,
+            "channels": channels,
+            "tag": tag,
+            "commit": commit,
+            "urls": {
+              "workflowRun": run_url,
+              "vscodeMarketplaceItem": vscode_url,
+              "vscodeMarketplaceManage": vscode_manage_url,
+              "pythonProject": pypi_project_url,
+            },
+          }
+
+          out_json = pathlib.Path("release-summary/summary.json")
+          out_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+          lines = [
+            "# Release Summary",
+            "",
+            f"- branch: `{branch}`",
+            f"- event: `{event}`",
+            f"- mode: `{mode}`",
+            f"- canonical version: `{canonical}`",
+            f"- python version: `{python_version}`",
+            f"- vscode version: `{vscode_version}`",
+            f"- tag: `{tag}`",
+            f"- commit: `{commit}`",
+            f"- channels: `{json.dumps(channels, sort_keys=True)}`",
+            "",
+            "## URLs",
+            "",
+            f"- workflow run: {run_url}",
+            f"- VS Code item: {vscode_url}",
+            f"- VS Code manage: {vscode_manage_url}",
+            f"- Python project: {pypi_project_url}",
+          ]
+          pathlib.Path("release-summary/summary.md").write_text(
+            "\n".join(lines) + "\n",
+            encoding="utf-8",
+          )
+          PY
+
+      - name: Upload release summary artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-summary
+          path: release-summary/**
