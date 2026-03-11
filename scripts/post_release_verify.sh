@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 PYTHON_REPOSITORY="${PYTHON_REPOSITORY:-testpypi}"
 VERIFY_PYTHON="${VERIFY_PYTHON:-1}"
 VSCE_VERIFY_ATTEMPTS="${VSCE_VERIFY_ATTEMPTS:-20}"
-VSCE_VERIFY_INITIAL_DELAY_SECONDS="${VSCE_VERIFY_INITIAL_DELAY_SECONDS:-30}"
+VSCE_VERIFY_INITIAL_DELAY_SECONDS="${VSCE_VERIFY_INITIAL_DELAY_SECONDS:-45}"
 VSCE_VERIFY_DELAY_SECONDS="${VSCE_VERIFY_DELAY_SECONDS:-30}"
 VSCE_VERIFY_MAX_DELAY_SECONDS="${VSCE_VERIFY_MAX_DELAY_SECONDS:-120}"
 VSCE_SHOW_TIMEOUT_SECONDS="${VSCE_SHOW_TIMEOUT_SECONDS:-25}"
@@ -86,6 +86,18 @@ sys.exit(completed.returncode)
 PY
 }
 
+countdown_sleep() {
+  local total_seconds="$1"
+  if [[ "$total_seconds" -le 0 ]]; then
+    return
+  fi
+  while [[ "$total_seconds" -gt 0 ]]; do
+    echo "post-release-verify: first marketplace check in $(fmt_num "${total_seconds}s")..."
+    sleep 1
+    total_seconds=$((total_seconds - 1))
+  done
+}
+
 LOCAL_EXTENSION_VERSION="$(node -p "require('./extension/package.json').version")"
 LOCAL_PYTHON_VERSION="$(
   python3 - <<'PY'
@@ -119,7 +131,7 @@ echo "post-release-verify: marketplace check retry policy: attempts=$(fmt_num "$
 
 if [[ "$VSCE_VERIFY_INITIAL_DELAY_SECONDS" -gt 0 ]]; then
   echo "post-release-verify: waiting $(fmt_num "${VSCE_VERIFY_INITIAL_DELAY_SECONDS}s") before first marketplace check..."
-  sleep "$VSCE_VERIFY_INITIAL_DELAY_SECONDS"
+  countdown_sleep "$VSCE_VERIFY_INITIAL_DELAY_SECONDS"
 fi
 
 REMOTE_EXTENSION_VERSION=""
