@@ -1,0 +1,1 @@
+{"canonicalVersion":"0.1.0-alpha.5","pythonVersion":"0.1.0a5","vscodeVersion":"0.1.5","mode":"full","vsixTargets":["darwin-arm64","linux-x64","win32-x64"],"channels":{"python":"success","vscode_darwin_arm64":"success","vscode_linux_x64":"success","vscode_win32_x64":"success"},"commit":"6f060220128d1a2c6dcf769901b9de5d40903d3d","timestamp":"2026-03-11T00:19:26.991Z"}
