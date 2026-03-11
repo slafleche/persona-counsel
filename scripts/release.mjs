@@ -160,9 +160,8 @@ const prompt = (question, defaultValue = '') =>
       input: process.stdin,
       output: process.stdout,
     });
-    const suffix = defaultValue ? ` [${color(defaultValue, 'green')}]` : '';
     const renderedQuestion = formatPromptQuestion(question, defaultValue);
-    rl.question(`${renderedQuestion}${suffix} `, (answer) => {
+    rl.question(`${renderedQuestion} `, (answer) => {
       rl.close();
       const normalized = answer.trim();
       resolve(normalized || defaultValue);
