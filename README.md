@@ -93,9 +93,9 @@ npm run release
 
 Notes:
 
-- Python upload target is policy-locked by release mode:
-  - prerelease lock (`ALLOW_STABLE_RELEASE=false`): `testpypi`
-  - stable mode (`ALLOW_STABLE_RELEASE=true`): `pypi`
+- Python upload target is policy-locked by release branch mode:
+  - prerelease mode (any branch except `release`): `testpypi`
+  - stable mode (`release` branch): `pypi`
 - VS Code publish requires `VSCE_PAT` in environment.
 - Release script keeps Python + VS Code versions synchronized under a canonical
   prerelease identifier (`X.Y.Z-alpha.N`), with derived channel versions:
@@ -103,16 +103,16 @@ Notes:
   - VS Code: `X.Y.N`
 - Release state is tracked locally in `.release-state.local.json` (gitignored).
   Failed/in-progress releases reuse the same reserved canonical version.
-- With `ALLOW_STABLE_RELEASE=false` (current default), only prerelease increments are allowed:
+- In prerelease mode (branch is not `release`), only prerelease increments are allowed:
   - canonical: `X.Y.Z-alpha.N` -> `X.Y.Z-alpha.(N+1)`
   - Python: `X.Y.ZaN` -> `X.Y.Za(N+1)`
   - VS Code: `X.Y.N` -> `X.Y.(N+1)`
 - In prerelease lock mode, VSIX packaging uses `--pre-release`, matching Marketplace publish mode.
 - Build signing expectation:
   - prerelease lock mode may produce unsigned macOS binaries while signing is being finalized
-  - stable mode requires signed + notarized macOS binaries
+  - stable mode (`release` branch) requires signed + notarized macOS binaries
 - `npm run release:dry` is non-interactive and shows the default prerelease bump plan.
-- To allow `patch`/`minor`/`major` base-version bumps, set `ALLOW_STABLE_RELEASE=true` in `scripts/release.mjs`.
+- Stable base-version bumps (`patch`/`minor`/`major`) are only available on the `release` branch.
 - On release failure after bump, local versions are rolled back to the previous synchronized pair.
 - Resume behavior auto-skips channels/targets already marked successful in release state.
 - On release failure, legacy `./.release-tools-venv` is also cleaned up if present.
@@ -136,7 +136,7 @@ Post-release verification:
 Optional overrides:
 
 - `EXTENSION_ID` (default: `PersonaCouncel.persona-counsel-vscode`)
-- `PYTHON_REPOSITORY` (default: `testpypi`, set to `pypi` for stable-mode checks)
+- `PYTHON_REPOSITORY` (optional override; defaults to branch-policy target)
 
 `npm run release` now runs post-release verification automatically whenever the
 VS Code publish step runs:
