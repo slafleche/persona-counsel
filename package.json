@@ -7,6 +7,9 @@
     "packages/*"
   ],
   "scripts": {
+    "pr:open": "bash ./scripts/pr_open.sh --pr",
+    "pr:open:pr": "bash ./scripts/pr_open.sh --pr",
+    "pr:open:r": "bash ./scripts/pr_open.sh --r",
     "release": "node scripts/release.mjs",
     "release:dry": "node scripts/release.mjs --dry-run",
     "release:queue": "bash ./scripts/release_queue_ci.sh",
