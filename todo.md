@@ -1,7 +1,15 @@
 
 ## Portability / Installability
 
-- [ ] Tracked in Epic 01: `epics/01_artifactmatrix/01_artifactmatrix_plan.md`
+- [ ] Finalize release lanes flow: PR->merge to `prerelease` auto-publishes prerelease in CI; manual promotion to `release` publishes stable.
+  - [ ] Add CI release orchestrator skeleton job after matrix build (download artifacts + validate layout only).
+  - [ ] Wire CI orchestrator to run non-interactive release publish + post-release verification.
+  - [ ] Add manual promotion path for stable publish on `release` lane.
+- [ ] Add CI release workflow concurrency guard (prevent overlapping release runs).
+- [ ] Add CI secret preflight checks (`VSCE_PAT`, `TWINE_USERNAME`, `TWINE_PASSWORD`).
+- [ ] Add artifact integrity verification before packaging/publish (sha256 check).
+- [ ] Restrict auto release-tracking commit scope to release files only (no broad `git add -A`).
+- [ ] Add CI release summary artifact/output (version, channels, URLs, commit, tag).
 
 == Blocking ==
 
