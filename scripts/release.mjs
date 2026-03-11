@@ -729,6 +729,8 @@ const printReleasePlan = ({
   pendingVsixTargets,
   runVsixTargets,
   pendingPython,
+  pythonChannelStatus,
+  finalizedVsixTargets,
   isDryRun,
   isCheckOnly,
   isResuming,
@@ -737,6 +739,11 @@ const printReleasePlan = ({
     ? '\nRelease dry run plan:'
     : (isCheckOnly ? '\nRelease preflight check plan:' : '\nRelease plan:');
   console.log(heading);
+  if (isResuming) {
+    console.log(`- run mode: ${fmtHint('finalizing existing release (.release-state.local.json)')}`);
+  } else {
+    console.log(`- run mode: ${fmtHint('creating a new release')}`);
+  }
   console.log(`- canonical version: ${fmtNextVersion(canonicalVersion)}`);
   console.log(
     `- version bump (${bumpType}): python ${fmtVersion(currentPythonVersion)} -> ${fmtNextVersion(nextPythonVersion)}, ` +
@@ -749,6 +756,8 @@ const printReleasePlan = ({
   console.log(`- vscode extension: persona-counsel-vscode@${fmtNextVersion(nextExtensionVersion)} -> VS Code Marketplace`);
   console.log(`- vsix targets: ${vsixTargets.join(', ')}`);
   if (isResuming) {
+    console.log(`- finalized python channel: ${pythonChannelStatus}`);
+    console.log(`- finalized vscode targets: ${finalizedVsixTargets.length > 0 ? finalizedVsixTargets.join(', ') : 'none yet'}`);
     console.log(`- pending python publish: ${pendingPython ? 'yes' : 'no (already successful)'}`);
     console.log(`- pending vscode targets: ${pendingVsixTargets.length > 0 ? pendingVsixTargets.join(', ') : 'none (all already successful)'}`);
     if (!SKIP_VSCODE_PUBLISH && pendingVsixTargets.length > 0) {
@@ -882,6 +891,10 @@ const main = async () => {
         pendingVsixTargets = [];
       }
     }
+    const pythonChannelStatus = getChannelStatus(releaseState, 'python');
+    const finalizedVsixTargets = SKIP_VSCODE_PUBLISH
+      ? []
+      : vsixTargets.filter((target) => getChannelStatus(releaseState, targetChannelKey(target)) === 'success');
     let runVsixTargets = pendingVsixTargets;
     if (
       resumingRelease
@@ -914,6 +927,8 @@ const main = async () => {
       pendingVsixTargets,
       runVsixTargets,
       pendingPython,
+      pythonChannelStatus,
+      finalizedVsixTargets,
       isDryRun,
       isCheckOnly,
       isResuming: resumingRelease,
