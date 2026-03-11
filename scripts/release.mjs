@@ -43,6 +43,7 @@ const ANSI = {
   dim: '\u001b[2m',
   cyan: '\u001b[36m',
   green: '\u001b[32m',
+  red: '\u001b[31m',
 };
 
 class StepError extends Error {
@@ -56,6 +57,21 @@ const color = (value, tone) => (USE_COLOR ? `${ANSI[tone]}${value}${ANSI.reset}`
 const fmtVersion = (version) => color(version, 'cyan');
 const fmtNextVersion = (version) => color(version, 'green');
 const fmtHint = (value) => color(value, 'dim');
+
+const formatPromptQuestion = (question, defaultValue = '') => {
+  const normalizedDefault = String(defaultValue || '').toLowerCase();
+  const isYesNo = normalizedDefault === 'y' || normalizedDefault === 'n';
+  if (!isYesNo || !USE_COLOR) {
+    return question;
+  }
+
+  const yesTone = normalizedDefault === 'y' ? 'green' : 'red';
+  const noTone = normalizedDefault === 'n' ? 'green' : 'red';
+  const yes = color('y', yesTone);
+  const no = color('N', noTone);
+
+  return question.replace(/\(y\/N\)/g, `(${yes}/${no})`);
+};
 
 const cleanupLegacyReleaseVenv = () => {
   if (!existsSync(LEGACY_RELEASE_TOOLS_VENV)) {
@@ -144,8 +160,9 @@ const prompt = (question, defaultValue = '') =>
       input: process.stdin,
       output: process.stdout,
     });
-    const suffix = defaultValue ? ` [${defaultValue}]` : '';
-    rl.question(`${question}${suffix} `, (answer) => {
+    const suffix = defaultValue ? ` [${color(defaultValue, 'green')}]` : '';
+    const renderedQuestion = formatPromptQuestion(question, defaultValue);
+    rl.question(`${renderedQuestion}${suffix} `, (answer) => {
       rl.close();
       const normalized = answer.trim();
       resolve(normalized || defaultValue);
@@ -551,6 +568,16 @@ const hasLocalBackendArtifact = (target) => {
   return existsSync(artifactPath);
 };
 
+const getMissingBackendTargets = ({ targets, allowBuildLocal }) => {
+  const localBuildTarget = allowBuildLocal ? detectLocalVsixTarget() : '';
+  return (targets || []).filter((target) => {
+    if (target === localBuildTarget) {
+      return false;
+    }
+    return !hasLocalBackendArtifact(target);
+  });
+};
+
 const detectLocalVsixTarget = () => {
   const arch = process.arch;
   if (process.platform === 'darwin' && (arch === 'arm64' || arch === 'x64')) {
@@ -571,12 +598,7 @@ const ensureVsixArtifactsReady = ({ targets, allowBuildLocal }) => {
   }
 
   const localBuildTarget = allowBuildLocal ? detectLocalVsixTarget() : '';
-  const missingTargets = targets.filter((target) => {
-    if (target === localBuildTarget) {
-      return false;
-    }
-    return !hasLocalBackendArtifact(target);
-  });
+  const missingTargets = getMissingBackendTargets({ targets, allowBuildLocal });
 
   if (missingTargets.length > 0) {
     const lines = [
@@ -854,6 +876,39 @@ const main = async () => {
     const vsixTargets = resumingRelease
       ? (stateVsixTargets && stateVsixTargets.length > 0 ? stateVsixTargets : requestedVsixTargets)
       : requestedVsixTargets;
+
+    if (!isDryRun && !isCheckOnly && !resumingRelease && !SKIP_VSCODE_PUBLISH) {
+      let missingBeforePlan = getMissingBackendTargets({
+        targets: vsixTargets,
+        allowBuildLocal: BUILD_LOCAL_BACKEND,
+      });
+      if (missingBeforePlan.length > 0) {
+        console.log(
+          `\n> Backend matrix status before release plan: missing ${missingBeforePlan.join(', ')}`,
+        );
+        const buildNow = await prompt(
+          'Generate local backend artifact now with ./scripts/build_vscode_backend.sh? (y/N)',
+          'y',
+        );
+        if (/^y(es)?$/i.test(buildNow)) {
+          runStep('Build local backend artifact', './scripts/build_vscode_backend.sh', []);
+          missingBeforePlan = getMissingBackendTargets({
+            targets: vsixTargets,
+            allowBuildLocal: BUILD_LOCAL_BACKEND,
+          });
+        }
+        if (missingBeforePlan.length > 0) {
+          console.log(
+            `> Backend matrix still missing before release plan: ${missingBeforePlan.join(', ')}`,
+          );
+          console.log(
+            '> Provide those artifacts under build/vscode-backend-artifacts/<platform>-<arch>/counsel(.exe) before publish.',
+          );
+        } else {
+          console.log('> Backend matrix check before release plan: all selected targets available.');
+        }
+      }
+    }
     releaseState = resumingRelease
       ? {
         ...existingReleaseState,
