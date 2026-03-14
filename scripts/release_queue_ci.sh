@@ -25,6 +25,17 @@ if [[ "${local_sha}" != "${remote_sha}" ]]; then
 fi
 
 echo "release-queue: dispatching '${WORKFLOW_NAME}' on ${branch}..."
-gh workflow run "${WORKFLOW_NAME}" --ref "${branch}"
+workflow_output="$(gh workflow run "${WORKFLOW_NAME}" --ref "${branch}" 2>&1)"
+echo "${workflow_output}"
+
+run_url="$(printf '%s\n' "${workflow_output}" | grep -Eo 'https://github.com/[^[:space:]]+/actions/runs/[0-9]+' | head -n1 || true)"
+if [[ -n "${run_url}" ]]; then
+  if command -v open >/dev/null 2>&1; then
+    open "${run_url}" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${run_url}" >/dev/null 2>&1 || true
+  fi
+fi
+
 echo "release-queue: dispatched."
 echo "release-queue: check status with: gh run list --workflow \"${WORKFLOW_NAME}\" --limit 5"
