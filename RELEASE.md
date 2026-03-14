@@ -63,6 +63,7 @@ Default VSIX target matrix is:
 - `win32-x64`
 
 Matrix artifacts are expected from CI build jobs for official publish.
+Do not manually download/upload artifacts for official release; CI handles packaging and publishing end-to-end.
 Local single-target builds can still be used for debug preflight.
 
 Expected artifact layout:
@@ -108,4 +109,3 @@ Successful finalization updates:
 - `docs/release_channels.md`
 - `docs/release-readiness-checklist.md`
 - `docs/release_signing_secrets.md`
-- `epics/01_artifactmatrix/01_artifactmatrix_plan.md`
